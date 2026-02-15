@@ -40,6 +40,9 @@ class CodeGenerator:
         print("[CodeGen] Generating CI/CD pipeline...")
         self._generate_cicd(project_path, spec)
         
+        print("[CodeGen] Generating Render deployment config...")
+        self._generate_render_config(project_path, spec)
+        
         print("[CodeGen] Generating Kubernetes manifests...")
         self._generate_kubernetes(project_path, spec)
         
@@ -244,7 +247,7 @@ Requirements:
         (frontend_path / "app.py").write_text(app_code)
         
         # Generate requirements.txt
-        (frontend_path / "requirements.txt").write_text("Flask==3.0.0\nrequests==2.31.0")
+        (frontend_path / "requirements.txt").write_text("Flask==3.0.0\nrequests==2.31.0\ngunicorn==21.2.0")
         
         # Generate Dockerfile
         (frontend_path / "Dockerfile").write_text("""FROM python:3.11-slim
@@ -555,3 +558,44 @@ def {func_name}():
 """
         
         return code
+    
+    def _generate_render_config(self, project_path: Path, spec: Dict):
+        """Generate render.yaml for one-click deployment"""
+        app_name = spec.get("appConfig", {}).get("name", "app").lower().replace(" ", "-")
+        
+        render_yaml = f"""services:
+  - type: web
+    name: {app_name}-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./app.db
+    
+  - type: web
+    name: {app_name}-frontend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    rootDir: frontend
+    envVars:
+      - key: BACKEND_API_URL
+        fromService:
+          name: {app_name}-backend
+          type: web
+          property: url
+      - key: SECRET_KEY
+        generateValue: true
+"""
+        
+        (project_path / "render.yaml").write_text(render_yaml)
+        
+        # Add deploy button to README
+        readme_path = project_path / "README.md"
+        if readme_path.exists():
+            readme = readme_path.read_text()
+            deploy_section = f"""\n## 🚀 Déployer sur Render (GRATUIT)\n\n[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)\n\n### Étapes:\n1. **Push sur GitHub**:\n   ```bash\n   git init\n   git add .\n   git commit -m \"Initial commit\"\n   git remote add origin https://github.com/her0-03/{app_name}.git\n   git push -u origin main\n   ```\n\n2. **Cliquez sur le bouton \"Deploy to Render\" ci-dessus**\n\n3. **Connectez votre repo GitHub**\n\n4. **C'est tout!** Votre app sera live en 3-5 minutes \u00e0:\n   - Frontend: `https://{app_name}-frontend.onrender.com`\n   - Backend: `https://{app_name}-backend.onrender.com`\n\n**Note**: Plan gratuit = 750h/mois. L'app s'endort après 15min d'inactivité.\n"""
+            readme += deploy_section
+            readme_path.write_text(readme)

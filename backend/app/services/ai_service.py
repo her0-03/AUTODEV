@@ -133,3 +133,64 @@ Respond ONLY with valid JSON, no markdown formatting."""
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
+    
+    async def fix_code_error(self, file_path: str, error_message: str) -> str:
+        """Auto-fix code errors using AI"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                code = f.read()
+            
+            is_flask = 'flask' in code.lower() or 'app.py' in file_path
+            
+            if is_flask:
+                prompt = f"""Fix this Flask application code:
+
+ERROR:
+{error_message}
+
+CODE:
+{code}
+
+Return ONLY the fixed code. Requirements:
+1. Import Flask, render_template, requests
+2. Add @app.route('/') for homepage
+3. Use <int:id> not {{id}} in routes
+4. Connect to BACKEND_API_URL environment variable
+5. Add try/except for API calls
+6. Use port from FLASK_RUN_PORT environment variable
+7. Make sure all routes return valid responses
+"""
+            else:
+                prompt = f"""Fix this Python FastAPI code:
+
+ERROR:
+{error_message}
+
+CODE:
+{code}
+
+Return ONLY the fixed code. Requirements:
+1. Import APIRouter, List, BaseModel
+2. Define router = APIRouter()
+3. Include all response models with from_attributes = True
+4. Include app.include_router(router)
+5. Add @app.get("/") root endpoint
+6. Fix all syntax errors
+"""
+            
+            response = self.client.chat.completions.create(
+                model=self.analysis_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=4000
+            )
+            
+            fixed_code = response.choices[0].message.content.strip()
+            if fixed_code.startswith("```"):
+                lines = fixed_code.split("\n")
+                fixed_code = "\n".join(lines[1:-1]) if len(lines) > 2 else fixed_code
+            
+            return fixed_code
+        except Exception as e:
+            print(f"[AI-FIX] Error: {e}")
+            return None

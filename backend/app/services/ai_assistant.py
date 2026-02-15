@@ -4,6 +4,8 @@ from .ai_service import AIService
 class AIAssistant:
     def __init__(self):
         self.ai_service = AIService()
+        self.client = self.ai_service.client
+        self.model = self.ai_service.analysis_model
     
     def modify_code(self, instruction: str, current_code: str, context: Dict) -> str:
         """Modify generated code based on natural language instructions"""
@@ -173,40 +175,56 @@ Provide a helpful, detailed answer based on the project files."""
     def process_request(self, question: str, files_content: dict, project_dir) -> dict:
         """Process user request and modify files if needed"""
         from pathlib import Path
+        import json
+        import base64
         
-        # Build context
-        context = "\n".join([f"--- {name} ---\n{content}" for name, content in list(files_content.items())[:10]])
+        print(f"[AI-ASSISTANT] Processing request with {len(files_content)} files")
         
-        prompt = f"""You are an AI assistant that modifies project files based on user requests.
+        # Get most relevant files
+        relevant_files = {}
+        for name, content in files_content.items():
+            if 'index' in name.lower() or 'template' in name or name.endswith('.html'):
+                relevant_files[name] = content
+        
+        if not relevant_files:
+            relevant_files = dict(list(files_content.items())[:3])
+        
+        file_list = "\n".join([f"- {name}" for name in files_content.keys()])
+        context = "\n\n".join([f"=== {name} ===\n{content}" for name, content in relevant_files.items()])
+        
+        prompt = f"""You are modifying a Flask web application.
 
-Project Files:
-{context[:6000]}
+AVAILABLE FILES:
+{file_list}
+
+CURRENT CONTENT OF RELEVANT FILES:
+{context[:10000]}
 
 User Request: {question}
 
-Analyze the request and respond in JSON format:
-{{
-  "action": "modify" or "answer",
-  "files_to_modify": ["file1.md", "file2.py"],
-  "modifications": {{
-    "file1.md": "new content here",
-    "file2.py": "new code here"
-  }},
-  "answer": "explanation of what was done"
-}}
+IMPORTANT:
+- Find the EXACT file path from the list
+- Read its current content above
+- Make ONLY the requested change
+- Keep ALL existing structure
+- Use Flask routes: href=\"/students\" NOT href=\"students.html\"
 
-If the request requires modifying files, provide the complete new content for each file."""
+Respond with this EXACT format (use <<<CONTENT>>> and <<<END>>> as delimiters):
+{{
+  \"file\": \"exact/file/path.html\",
+  \"content\": \"<<<CONTENT>>>\nPUT COMPLETE FILE CONTENT HERE\n<<<END>>>\",
+  \"answer\": \"Modified [file] to [change]\"
+}}"""
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=4000
+                temperature=0.1,
+                max_tokens=8000
             )
             
-            import json
-            result_text = response.choices[0].message.content
+            result_text = response.choices[0].message.content.strip()
             
             # Extract JSON
             if "```json" in result_text:
@@ -214,25 +232,59 @@ If the request requires modifying files, provide the complete new content for ea
             elif "```" in result_text:
                 result_text = result_text.split("```")[1].split("```")[0]
             
-            result = json.loads(result_text.strip())
+            # Extract content between delimiters
+            if "<<<CONTENT>>>" in result_text and "<<<END>>>" in result_text:
+                content_start = result_text.find("<<<CONTENT>>>") + len("<<<CONTENT>>>")
+                content_end = result_text.find("<<<END>>>")
+                file_content = result_text[content_start:content_end].strip()
+                
+                # Extract file path and answer
+                file_match = result_text.split('"file"')[1].split('"')[1]
+                answer_match = result_text.split('"answer"')[1].split('"')[1] if '"answer"' in result_text else "Modified"
+                
+                result = {
+                    "file": file_match,
+                    "content": file_content,
+                    "answer": answer_match
+                }
+            else:
+                # Fallback: try normal JSON
+                result = json.loads(result_text.strip())
             
-            # Modify files if needed
             modified_files = []
-            if result.get("action") == "modify" and result.get("modifications"):
-                for filename, new_content in result["modifications"].items():
-                    file_path = project_dir / filename
+            
+            # Handle both formats
+            if "file" in result and "content" in result:
+                filename = result["file"]
+                new_content = result["content"]
+                
+                # Find exact file
+                actual_path = None
+                if filename in files_content:
+                    actual_path = project_dir / filename
+                else:
+                    for existing_file in files_content.keys():
+                        if existing_file.endswith(filename):
+                            actual_path = project_dir / existing_file
+                            break
+                
+                if actual_path:
                     try:
-                        file_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(file_path, 'w', encoding='utf-8') as f:
+                        with open(actual_path, 'w', encoding='utf-8') as f:
                             f.write(new_content)
-                        modified_files.append(filename)
+                        modified_files.append(str(actual_path.relative_to(project_dir)))
+                        print(f"[AI-ASSISTANT] ✓ Modified {actual_path.relative_to(project_dir)}")
                     except Exception as e:
-                        print(f"Error modifying {filename}: {e}")
+                        print(f"[AI-ASSISTANT] ✗ Error: {e}")
+                else:
+                    print(f"[AI-ASSISTANT] ✗ File not found: {filename}")
             
             return {
                 "answer": result.get("answer", "Modifications effectuées"),
                 "modified_files": modified_files
             }
         except Exception as e:
-            print(f"AI processing error: {e}")
-            return {"answer": "Unable to process request", "modified_files": []}
+            print(f"[AI-ASSISTANT] Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"answer": f"Erreur: {str(e)}", "modified_files": []}

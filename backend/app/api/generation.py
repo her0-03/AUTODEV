@@ -13,6 +13,7 @@ from ..services.document_processor import DocumentProcessor
 from ..services.ai_service import AIService
 from ..services.code_generator import CodeGenerator
 from ..utils.auth import get_current_user
+import asyncio
 
 router = APIRouter(prefix="/api/v1", tags=["generation"])
 
@@ -193,3 +194,196 @@ def get_project_file(job_id: str, file_path: str, db: Session = Depends(get_db),
             return {"content": f.read()}
     except:
         raise HTTPException(status_code=400, detail="Cannot read file")
+
+@router.post("/generation/job/{job_id}/preview-app")
+async def preview_generated_app(job_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Launch full-stack app with AI auto-fix"""
+    import subprocess
+    import socket
+    import sys
+    
+    project_dir = Path(settings.GENERATED_DIR) / f"project_{job_id}"
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    backend_dir = project_dir / "backend"
+    frontend_dir = project_dir / "frontend"
+    
+    def find_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('', 0))
+            return s.getsockname()[1]
+    
+    backend_port = find_free_port()
+    frontend_port = find_free_port()
+    
+    # Install deps
+    for req_file in [(backend_dir / "requirements.txt"), (frontend_dir / "requirements.txt")]:
+        if req_file.exists():
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(req_file)], check=False, capture_output=True)
+    
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            # Fix backend
+            result = subprocess.run([sys.executable, "-c", "import main"], cwd=str(backend_dir), capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                print(f"[AUTO-FIX] Backend error (attempt {attempt+1}): {result.stderr[:200]}")
+                ai_service = AIService()
+                fixed = await ai_service.fix_code_error(str(backend_dir / "main.py"), result.stderr)
+                if fixed:
+                    with open(backend_dir / "main.py", "w", encoding="utf-8") as f:
+                        f.write(fixed)
+                    print(f"[AUTO-FIX] Backend fixed")
+                    await asyncio.sleep(1)
+                    continue
+            
+            # Fix frontend
+            result = subprocess.run([sys.executable, "-c", "import app"], cwd=str(frontend_dir), capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                print(f"[AUTO-FIX] Frontend error (attempt {attempt+1}): {result.stderr[:200]}")
+                ai_service = AIService()
+                fixed = await ai_service.fix_code_error(str(frontend_dir / "app.py"), result.stderr)
+                if fixed:
+                    with open(frontend_dir / "app.py", "w", encoding="utf-8") as f:
+                        f.write(fixed)
+                    print(f"[AUTO-FIX] Frontend fixed")
+                    await asyncio.sleep(1)
+                    continue
+            
+            # Start backend
+            backend_process = subprocess.Popen(
+                [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(backend_port)],
+                cwd=str(backend_dir),
+                env={**os.environ, "DATABASE_URL": "sqlite:///./app.db"},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            await asyncio.sleep(2)
+            
+            # Check backend started
+            if backend_process.poll() is not None:
+                _, stderr = backend_process.communicate(timeout=1)
+                print(f"[AUTO-FIX] Backend crashed: {stderr[:200]}")
+                ai_service = AIService()
+                fixed = await ai_service.fix_code_error(str(backend_dir / "main.py"), stderr)
+                if fixed:
+                    with open(backend_dir / "main.py", "w", encoding="utf-8") as f:
+                        f.write(fixed)
+                    continue
+            
+            # Start frontend
+            frontend_process = subprocess.Popen(
+                [sys.executable, "app.py"],
+                cwd=str(frontend_dir),
+                env={**os.environ, "FLASK_RUN_PORT": str(frontend_port), "BACKEND_API_URL": f"http://localhost:{backend_port}"},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            await asyncio.sleep(2)
+            
+            # Check frontend started
+            if frontend_process.poll() is not None:
+                _, stderr = frontend_process.communicate(timeout=1)
+                print(f"[AUTO-FIX] Frontend crashed: {stderr[:200]}")
+                ai_service = AIService()
+                fixed = await ai_service.fix_code_error(str(frontend_dir / "app.py"), stderr)
+                if fixed:
+                    with open(frontend_dir / "app.py", "w", encoding="utf-8") as f:
+                        f.write(fixed)
+                    continue
+            
+            # Auto-fix templates if missing
+            templates_dir = frontend_dir / "templates"
+            if not (templates_dir / "index.html").exists():
+                print(f"[AUTO-FIX] Creating missing index.html")
+                templates_dir.mkdir(exist_ok=True)
+                with open(templates_dir / "index.html", "w", encoding="utf-8") as f:
+                    f.write('''<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <h1 class="text-5xl font-bold text-center mb-12">🚀 Application Générée</h1>
+        <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <a href="/students" class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                <div class="text-6xl mb-4">👨🎓</div>
+                <h2 class="text-2xl font-bold">Étudiants</h2>
+            </a>
+            <a href="/courses" class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                <div class="text-6xl mb-4">📚</div>
+                <h2 class="text-2xl font-bold">Cours</h2>
+            </a>
+            <a href="/transcripts" class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                <div class="text-6xl mb-4">📝</div>
+                <h2 class="text-2xl font-bold">Relevés</h2>
+            </a>
+        </div>
+    </div>
+</body>
+</html>''')
+            
+            # Auto-fix other templates
+            for template_name in ["students.html", "courses.html", "transcripts.html"]:
+                if not (templates_dir / template_name).exists():
+                    entity = template_name.replace(".html", "")
+                    print(f"[AUTO-FIX] Creating {template_name}")
+                    with open(templates_dir / template_name, "w", encoding="utf-8") as f:
+                        f.write(f'''<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{entity.title()}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold mb-8">{entity.title()}</h1>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div id="data-container"></div>
+        </div>
+        <a href="/" class="mt-4 inline-block text-blue-600 hover:underline">← Retour</a>
+    </div>
+    <script>
+        fetch('http://localhost:{backend_port}/api/{entity}')
+            .then(r => r.json())
+            .then(data => {{
+                document.getElementById('data-container').innerHTML = 
+                    '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            }})
+            .catch(e => {{
+                document.getElementById('data-container').innerHTML = 
+                    '<p class="text-red-600">Erreur: ' + e.message + '</p>';
+            }});
+    </script>
+</body>
+</html>''')
+            
+            return {
+                "url": f"http://localhost:{frontend_port}",
+                "frontend_port": frontend_port,
+                "backend_port": backend_port,
+                "backend_url": f"http://localhost:{backend_port}",
+                "message": f"Application complète! {'(Auto-corrigée ' + str(attempt+1) + 'x)' if attempt > 0 else ''}",
+                "fixed": attempt > 0,
+                "deploy_instructions": {
+                    "local": "Application running locally",
+                    "render": "To deploy on Render, use the 'Deploy to Render' button in the downloaded project"
+                }
+            }
+            
+        except Exception as e:
+            print(f"[AUTO-FIX] Attempt {attempt+1} failed: {e}")
+            if attempt == max_attempts - 1:
+                raise HTTPException(status_code=500, detail=f"Échec après {max_attempts} tentatives: {str(e)}")
+    
+    raise HTTPException(status_code=500, detail="Impossible de démarrer")

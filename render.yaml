@@ -1,37 +1,67 @@
 services:
-  # Backend API
+  # ----------------------------------------
+  # 1. LE CERVEAU (API Backend - FastAPI)
+  # ----------------------------------------
   - type: web
     name: autodev-backend
     env: python
     region: frankfurt
     plan: free
-    buildCommand: "cd backend && pip install -r requirements.txt"
-    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    # On force Python 3.11 pour éviter l'erreur de compilation Pandas
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: DATABASE_URL
-        sync: false
-      - key: JWT_SECRET
-        generateValue: true
+        fromDatabase:
+          name: autodev-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: autodev-redis
+          property: connectionString
       - key: GROQ_API_KEY
         sync: false
-      - key: GENERATED_DIR
-        value: /tmp/generated_projects
-      - key: UPLOAD_DIR
-        value: /tmp/uploads
-    
-  # Frontend
+      - key: SECRET_KEY
+        generateValue: true
+
+  # ----------------------------------------
+  # 2. LE VISAGE (Frontend - Flask)
+  # ----------------------------------------
   - type: web
     name: autodev-frontend
     env: python
     region: frankfurt
     plan: free
-    buildCommand: "cd frontend && pip install -r requirements.txt"
-    startCommand: "cd frontend && gunicorn app:app --bind 0.0.0.0:$PORT"
+    # On force Python 3.11 ici aussi
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn frontend.app:app --bind 0.0.0.0:$PORT"
     envVars:
-      - key: SECRET_KEY
-        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: BACKEND_API_URL
         fromService:
           type: web
           name: autodev-backend
-          property: host
+          property: url
+      - key: SECRET_KEY
+        generateValue: true
+
+  # ----------------------------------------
+  # 3. LA MÉMOIRE (Redis pour Celery)
+  # ----------------------------------------
+  - type: redis
+    name: autodev-redis
+    region: frankfurt
+    plan: free
+    ipAllowList: [] # Autorise uniquement les services internes
+
+  # ----------------------------------------
+  # 4. LA BASE DE DONNÉES (PostgreSQL)
+  # ----------------------------------------
+  - type: psql
+    name: autodev-db
+    region: frankfurt
+    plan: free

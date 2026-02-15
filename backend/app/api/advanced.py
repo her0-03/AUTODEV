@@ -8,6 +8,7 @@ from ..services.template_marketplace import TemplateMarketplace
 from ..services.ai_assistant import AIAssistant
 from ..services.analytics_service import AnalyticsService
 from ..services.security_analyzer import SecurityAnalyzer
+from ..services.auto_deployer import AutoDeployer
 
 router = APIRouter(prefix="/api/v1/advanced", tags=["advanced"])
 
@@ -132,26 +133,51 @@ async def ask_assistant(request: dict, current_user: User = Depends(get_current_
     if not question or not job_id:
         raise HTTPException(status_code=400, detail="Question and job_id required")
     
-    # Load project files
     from pathlib import Path
     from ..core.config import settings
     project_dir = Path(settings.GENERATED_DIR) / f"project_{job_id}"
     if not project_dir.exists():
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Read all files
+    # Read ALL files with FULL content
     files_content = {}
     for file_path in project_dir.rglob('*'):
-        if file_path.is_file() and file_path.suffix in ['.py', '.md', '.yml', '.txt', '.html']:
+        if file_path.is_file() and file_path.suffix in ['.py', '.md', '.yml', '.txt', '.html', '.css', '.js']:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    rel_path = str(file_path.relative_to(project_dir))
-                    files_content[rel_path] = f.read()
+                    rel_path = str(file_path.relative_to(project_dir)).replace('\\', '/')
+                    files_content[rel_path] = f.read()  # FULL content
             except:
                 pass
     
-    # Ask AI to process the question and modify files
+    print(f"[AI-ASSISTANT] Found {len(files_content)} files")
+    print(f"[AI-ASSISTANT] Files: {list(files_content.keys())}")
+    
     assistant = AIAssistant()
     result = assistant.process_request(question, files_content, project_dir)
     
     return result
+
+
+@router.post("/deploy/auto")
+async def auto_deploy(request: dict, current_user: User = Depends(get_current_user)):
+    """Auto-deploy: Create GitHub repo + Deploy to Render"""
+    job_id = request.get("job_id")
+    app_name = request.get("app_name", f"app-{job_id[:8]}")
+    
+    if not job_id:
+        raise HTTPException(status_code=400, detail="job_id required")
+    
+    from pathlib import Path
+    from ..core.config import settings
+    project_dir = Path(settings.GENERATED_DIR) / f"project_{job_id}"
+    
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    try:
+        deployer = AutoDeployer()
+        result = deployer.deploy_app(project_dir, app_name)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
