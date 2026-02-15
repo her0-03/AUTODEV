@@ -55,12 +55,18 @@ cp .env.example .env
 ### Push sur GitHub
 
 ```bash
+# Si erreur 403 (mauvais compte GitHub)
+git config --global credential.helper ""
+git credential-manager erase https://github.com
+
+# Puis push
 git init
 git add .
 git remote add origin https://github.com/her0-03/AUTODEV.git
 git commit -m "Ready for deployment"
 git branch -M main
 git push -u origin main
+# Entrez les identifiants du compte her0-03
 ```
 
 ### Déploiement Manuel
