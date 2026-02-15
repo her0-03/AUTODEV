@@ -1,0 +1,15 @@
+*.pyc
+__pycache__/
+.git/
+.env
+*.log
+.vscode/
+.idea/
+*.md
+!README.md
+!DEPLOYMENT.md
+tests/
+.pytest_cache/
+*.db
+uploads/
+generated/
