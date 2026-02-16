@@ -7,7 +7,6 @@ services:
     env: python
     region: frankfurt
     plan: free
-    # On force Python 3.11 pour éviter l'erreur de compilation Pandas
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
     envVars:
@@ -35,7 +34,6 @@ services:
     env: python
     region: frankfurt
     plan: free
-    # On force Python 3.11 ici aussi
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn frontend.app:app --bind 0.0.0.0:$PORT"
     envVars:
@@ -50,18 +48,11 @@ services:
         generateValue: true
 
   # ----------------------------------------
-  # 3. LA MÉMOIRE (Redis pour Celery)
+  # 3. LA MÉMOIRE (Redis)
   # ----------------------------------------
   - type: redis
     name: autodev-redis
     region: frankfurt
     plan: free
-    ipAllowList: [] # Autorise uniquement les services internes
+    ipAllowList: [] # Accessible uniquement par vos services internes
 
-  # ----------------------------------------
-  # 4. LA BASE DE DONNÉES (PostgreSQL)
-  # ----------------------------------------
-  - type: psql
-    name: autodev-db
-    region: frankfurt
-    plan: free
