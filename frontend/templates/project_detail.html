@@ -465,8 +465,8 @@
         }
         
         function saveSpec() {
-            if (!window.fullResponse) {
-                showToast('⚠️ Aucune donnée d\'analyse à sauvegarder', 'error');
+            if (!window.fullResponse || window.fullResponse.trim() === '') {
+                showToast('⚠️ Veuillez d\'abord lancer l\'analyse', 'error');
                 return;
             }
             
