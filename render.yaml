@@ -41,7 +41,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: BACKEND_API_URL
-        value: https://autodev-backend.onrender.com
+        value: https://autodev-backend-54jo.onrender.com/
       - key: SECRET_KEY
         generateValue: true
 
