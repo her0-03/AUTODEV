@@ -459,8 +459,13 @@
             
             eventSource.onerror = function() {
                 eventSource.close();
-                output.innerHTML += '\n\n<div class="text-yellow-400 mt-4">✅ Analyse terminée - Sauvegarde...</div>';
-                setTimeout(() => saveSpec(), 1000);
+                if (window.fullResponse && window.fullResponse.trim()) {
+                    output.innerHTML += '\n\n<div class="text-yellow-400 mt-4">✅ Analyse terminée - Sauvegarde automatique...</div>';
+                    setTimeout(() => saveSpec(), 1000);
+                } else {
+                    output.innerHTML = '<div class="text-red-400">❌ Erreur: Aucune donnée reçue. Vérifiez les logs backend.</div>';
+                    showToast('❌ Analyse échouée', 'error');
+                }
             };
         }
         
