@@ -13,18 +13,17 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        fromDatabase:
-          name: autodev-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: autodev-redis
-          property: connectionString
+        value: sqlite:///./dev.db
       - key: GROQ_API_KEY
         sync: false
-      - key: SECRET_KEY
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: JWT_SECRET
         generateValue: true
+      - key: GENERATED_DIR
+        value: /tmp/generated_projects
 
   # ----------------------------------------
   # 2. LE VISAGE (Frontend - Flask)
@@ -40,16 +39,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: BACKEND_API_URL
-        value: https://autodev-backend-54jo.onrender.com
+        value: https://autodev-backend.onrender.com
       - key: SECRET_KEY
         generateValue: true
-
-  # ----------------------------------------
-  # 3. LA MÉMOIRE (Redis)
-  # ----------------------------------------
-  - type: redis
-    name: autodev-redis
-    region: frankfurt
-    plan: free
-    ipAllowList: [] # Accessible uniquement par vos services internes
 
