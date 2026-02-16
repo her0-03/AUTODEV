@@ -115,7 +115,7 @@ def api_proxy(path):
                 files=files,
                 data=request.form,
                 headers=headers,
-                timeout=30
+                timeout=180
             )
         # Gérer JSON
         elif request.is_json:
@@ -124,7 +124,7 @@ def api_proxy(path):
                 url=url,
                 json=request.get_json(),
                 headers=headers,
-                timeout=30
+                timeout=180
             )
         # Gérer form data
         else:
@@ -133,7 +133,7 @@ def api_proxy(path):
                 url=url,
                 data=request.form,
                 headers=headers,
-                timeout=30
+                timeout=180
             )
         
         print(f"[PROXY] Response: {response.status_code}")
