@@ -6,6 +6,7 @@
     <title>Dashboard - AutoDev</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ui-enhancements.js') }}"></script>
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -224,23 +225,10 @@
                 showLoading('Création du projet...');
                 
                 try {
-                    const response = await fetch('http://localhost:8000/api/v1/projects', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + '{{ session.token }}'
-                        },
-                        body: JSON.stringify({ name, description })
-                    });
-                    
+                    const data = await API.createProject(name, description);
                     hideLoading();
-                    
-                    if (response.ok) {
-                        showToast('✅ Projet créé avec succès!', 'success');
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        showToast('❌ Erreur lors de la création', 'error');
-                    }
+                    showToast('✅ Projet créé avec succès!', 'success');
+                    setTimeout(() => location.reload(), 1000);
                 } catch (error) {
                     hideLoading();
                     showToast('❌ Erreur: ' + error.message, 'error');
