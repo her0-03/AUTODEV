@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response
 import requests
 import os
 
@@ -85,8 +85,25 @@ def api_proxy(path):
     headers = {'Authorization': f'Bearer {session["token"]}'}
     url = f'{BACKEND_URL}/api/v1/{path}'
     
+    # Ajouter les query params
+    if request.query_string:
+        url += '?' + request.query_string.decode('utf-8')
+    
     print(f"[PROXY] {request.method} {url}")
-    print(f"[PROXY] Backend URL: {BACKEND_URL}")
+    
+    # Gérer SSE (Server-Sent Events)
+    if 'analyze-stream' in path:
+        def generate():
+            try:
+                with requests.get(url, headers=headers, stream=True, timeout=300) as r:
+                    for chunk in r.iter_content(chunk_size=None, decode_unicode=True):
+                        if chunk:
+                            yield chunk
+            except Exception as e:
+                print(f"[SSE PROXY] Error: {e}")
+                yield f"data: Error: {str(e)}\n\n"
+        
+        return Response(generate(), mimetype='text/event-stream')
     
     try:
         # Gérer les fichiers

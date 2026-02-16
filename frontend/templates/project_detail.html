@@ -446,7 +446,10 @@
             output.innerHTML = '<div class="flex items-center gap-2"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-400"></div><span>Analyse en cours...</span></div>';
             window.fullResponse = '';
             
-            const eventSource = new EventSource('http://localhost:8000/api/v1/generation/analyze-stream/' + jobId + '?token=' + token);
+            // Utiliser le proxy Flask au lieu de localhost:8000
+            const sseUrl = '/api/generation/analyze-stream/' + jobId + '?token=' + token;
+            console.log('[SSE] Connecting to:', sseUrl);
+            const eventSource = new EventSource(sseUrl);
             
             eventSource.onmessage = function(event) {
                 if (window.fullResponse === '') {
