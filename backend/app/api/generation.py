@@ -88,7 +88,7 @@ def save_spec(job_id: str, spec_data: dict, db: Session = Depends(get_db), curre
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    job.output_path = json.dumps(spec_data)
+    job.spec_json = json.dumps(spec_data)
     job.status = JobStatus.COMPLETED
     db.commit()
     return {"message": "Specification saved", "spec": spec_data}
@@ -123,15 +123,12 @@ def preview_spec(job_id: str, db: Session = Depends(get_db), current_user: User 
 @router.post("/generation/job/{job_id}/generate")
 def generate_code(job_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
-    if not job or not job.output_path:
+    if not job or not job.spec_json:
         raise HTTPException(status_code=404, detail="Job not found or not analyzed")
     
     try:
         print(f"[API] Using GENERATED_DIR: {settings.GENERATED_DIR}")
-        spec = json.loads(job.output_path)
-        
-        # Sauvegarder la spec dans un attribut séparé avant de générer
-        job.spec_json = job.output_path
+        spec = json.loads(job.spec_json)
         
         generator = CodeGenerator(settings.GENERATED_DIR)
         zip_path = generator.generate_project(spec, f"project_{job_id}")
