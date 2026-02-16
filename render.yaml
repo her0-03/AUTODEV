@@ -7,8 +7,9 @@ services:
     env: python
     region: frankfurt
     plan: free
+    rootDir: backend
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -33,8 +34,9 @@ services:
     env: python
     region: frankfurt
     plan: free
+    rootDir: frontend
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn frontend.app:app --bind 0.0.0.0:$PORT"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
