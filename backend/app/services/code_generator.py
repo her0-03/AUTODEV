@@ -582,10 +582,7 @@ def {func_name}():
     rootDir: frontend
     envVars:
       - key: BACKEND_API_URL
-        fromService:
-          name: {app_name}-backend
-          type: web
-          property: url
+        value: https://{app_name}-backend.onrender.com
       - key: SECRET_KEY
         generateValue: true
 """
