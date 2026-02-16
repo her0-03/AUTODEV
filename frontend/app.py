@@ -71,52 +71,46 @@ def dashboard():
     
     return redirect(url_for('login'))
 
-@app.route('/api/create-project', methods=['POST'])
-def create_project_api():
+@app.route('/api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+def api_proxy(path):
+    """Proxy universel pour toutes les requêtes API"""
     if 'token' not in session:
         return {'error': 'Unauthorized'}, 401
     
-    data = request.get_json()
     headers = {'Authorization': f'Bearer {session["token"]}'}
-    response = requests.post(f'{BACKEND_URL}/api/v1/projects', json=data, headers=headers)
+    url = f'{BACKEND_URL}/api/v1/{path}'
     
-    return response.json(), response.status_code
-
-@app.route('/api/upload-files', methods=['POST'])
-def upload_files_api():
-    if 'token' not in session:
-        return {'error': 'Unauthorized'}, 401
+    # Gérer les fichiers
+    if request.files:
+        files = [(name, (f.filename, f.stream, f.content_type)) for name, f in request.files.items()]
+        response = requests.request(
+            method=request.method,
+            url=url,
+            files=files,
+            data=request.form,
+            headers=headers
+        )
+    # Gérer JSON
+    elif request.is_json:
+        response = requests.request(
+            method=request.method,
+            url=url,
+            json=request.get_json(),
+            headers=headers
+        )
+    # Gérer form data
+    else:
+        response = requests.request(
+            method=request.method,
+            url=url,
+            data=request.form,
+            headers=headers
+        )
     
-    files = request.files.getlist('files')
-    project_id = request.form.get('project_id')
-    
-    headers = {'Authorization': f'Bearer {session["token"]}'}
-    files_data = [('files', (f.filename, f.stream, f.content_type)) for f in files]
-    
-    response = requests.post(f'{BACKEND_URL}/api/v1/upload', files=files_data, headers=headers)
-    return response.json(), response.status_code
-
-@app.route('/api/analyze', methods=['POST'])
-def analyze_api():
-    if 'token' not in session:
-        return {'error': 'Unauthorized'}, 401
-    
-    data = request.get_json()
-    headers = {'Authorization': f'Bearer {session["token"]}'}
-    response = requests.post(f'{BACKEND_URL}/api/v1/generation/analyze-stream/{data["job_id"]}', headers=headers)
-    
-    return response.json(), response.status_code
-
-@app.route('/api/generate', methods=['POST'])
-def generate_api():
-    if 'token' not in session:
-        return {'error': 'Unauthorized'}, 401
-    
-    data = request.get_json()
-    headers = {'Authorization': f'Bearer {session["token"]}'}
-    response = requests.post(f'{BACKEND_URL}/api/v1/generation/job/{data["job_id"]}/generate', json=data.get('spec'), headers=headers)
-    
-    return response.json(), response.status_code
+    try:
+        return response.json(), response.status_code
+    except:
+        return {'message': response.text}, response.status_code
 
 @app.route('/project/<project_id>')
 def project_detail(project_id):

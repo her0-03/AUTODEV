@@ -1,7 +1,7 @@
 // API Helper - Toutes les requêtes passent par le backend Flask
 const API = {
     // Base URL - toujours relatif au frontend
-    baseURL: '',
+    baseURL: '/api',
     
     // Helper pour faire des requêtes
     async request(endpoint, options = {}) {
@@ -13,6 +13,11 @@ const API = {
                 ...options.headers
             }
         };
+        
+        // Ne pas ajouter Content-Type pour FormData
+        if (options.body instanceof FormData) {
+            delete config.headers['Content-Type'];
+        }
         
         try {
             const response = await fetch(url, config);
@@ -31,36 +36,41 @@ const API = {
     
     // Projets
     async createProject(name, description) {
-        return this.request('/api/create-project', {
+        return this.request('/projects', {
             method: 'POST',
             body: JSON.stringify({ name, description })
         });
     },
     
-    async uploadFiles(projectId, files) {
+    async uploadFiles(files) {
         const formData = new FormData();
-        formData.append('project_id', projectId);
         for (let file of files) {
             formData.append('files', file);
         }
         
-        return fetch('/api/upload-files', {
+        return this.request('/upload', {
             method: 'POST',
             body: formData
-        }).then(r => r.json());
-    },
-    
-    async analyzeProject(jobId) {
-        return this.request('/api/analyze', {
-            method: 'POST',
-            body: JSON.stringify({ job_id: jobId })
         });
     },
     
-    async generateProject(jobId, spec) {
-        return this.request('/api/generate', {
+    async createJob(projectId, inputFiles) {
+        return this.request('/generation/job', {
             method: 'POST',
-            body: JSON.stringify({ job_id: jobId, spec })
+            body: JSON.stringify({ project_id: projectId, input_files: inputFiles })
+        });
+    },
+    
+    async saveSpec(jobId, spec) {
+        return this.request(`/generation/job/${jobId}/save-spec`, {
+            method: 'POST',
+            body: JSON.stringify(spec)
+        });
+    },
+    
+    async generateCode(jobId) {
+        return this.request(`/generation/job/${jobId}/generate`, {
+            method: 'POST'
         });
     }
 };
