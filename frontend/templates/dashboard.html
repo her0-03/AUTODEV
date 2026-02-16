@@ -222,16 +222,20 @@
                 const name = document.getElementById('projectName').value;
                 const description = document.getElementById('projectDesc').value;
                 
-                showLoading('Création du projet...');
+                console.log('[CREATE] Starting project creation:', name);
+                showLoading('Création du projet... (Le backend peut prendre 30s à se réveiller)');
                 
                 try {
+                    console.log('[CREATE] Calling API.createProject');
                     const data = await API.createProject(name, description);
+                    console.log('[CREATE] Success:', data);
                     hideLoading();
                     showToast('✅ Projet créé avec succès!', 'success');
                     setTimeout(() => location.reload(), 1000);
                 } catch (error) {
+                    console.error('[CREATE] Error:', error);
                     hideLoading();
-                    showToast('❌ Erreur: ' + error.message, 'error');
+                    showToast('❌ Erreur: ' + error.message + ' (Vérifiez que le backend est actif)', 'error');
                 }
                 
                 modal.remove();
