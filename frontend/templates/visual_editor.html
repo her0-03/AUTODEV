@@ -247,7 +247,7 @@
         
         async function loadProject() {
             try {
-                const filesResponse = await fetch(`http://localhost:8000/api/v1/generation/job/${jobId}/files`, {
+                const filesResponse = await fetch(`/api/generation/job/${jobId}/files`, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
@@ -263,7 +263,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`http://localhost:8000/api/v1/generation/job/${jobId}/preview`, {
+                    const response = await fetch(`/api/generation/job/${jobId}/preview`, {
                         headers: { 'Authorization': 'Bearer ' + token }
                     });
                     if (response.ok) {
@@ -438,7 +438,7 @@
         async function aiAddAuth() {
             if (!confirm('Ajouter l\'authentification OAuth?')) return;
             const code = editor.getValue();
-            const response = await fetch('http://localhost:8000/api/v1/advanced/assistant/add-oauth', {
+            const response = await fetch('/api/advanced/assistant/add-oauth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({provider: 'google', code})
@@ -451,7 +451,7 @@
         async function aiAddPayment() {
             if (!confirm('Ajouter Stripe?')) return;
             const code = editor.getValue();
-            const response = await fetch('http://localhost:8000/api/v1/advanced/assistant/add-stripe', {
+            const response = await fetch('/api/advanced/assistant/add-stripe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({code})
@@ -463,7 +463,7 @@
         
         async function aiAddEmail() {
             const code = editor.getValue();
-            const response = await fetch('http://localhost:8000/api/v1/advanced/assistant/add-integration', {
+            const response = await fetch('/api/advanced/assistant/add-integration', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({service: 'sendgrid', code})
@@ -477,7 +477,7 @@
             const question = prompt('🤖 AI Assistant\n\nPosez votre question:');
             if (!question) return;
             
-            const response = await fetch('http://localhost:8000/api/v1/advanced/assistant/ask', {
+            const response = await fetch('/api/advanced/assistant/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({question, job_id: jobId})
@@ -497,7 +497,7 @@
                 projectFiles[currentFile] = editor.getValue();
             }
             
-            await fetch(`http://localhost:8000/api/v1/generation/job/${jobId}/save-spec`, {
+            await fetch(`/api/generation/job/${jobId}/save-spec`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify(currentSpec)
@@ -512,7 +512,7 @@
         async function downloadProject() {
             await saveChanges();
             
-            const response = await fetch(`http://localhost:8000/api/v1/generation/download/${jobId}`, {
+            const response = await fetch(`/api/generation/download/${jobId}`, {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             
@@ -531,7 +531,7 @@
             if (!confirm('🚀 Lancer l\'application générée?\n\nCela démarrera un serveur local.')) return;
             
             try {
-                const response = await fetch(`http://localhost:8000/api/v1/generation/job/${jobId}/preview-app`, {
+                const response = await fetch(`/api/generation/job/${jobId}/preview-app`, {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
@@ -677,7 +677,7 @@
             if (!appName) return;
             
             try {
-                const response = await fetch('http://localhost:8000/api/v1/advanced/deploy/auto', {
+                const response = await fetch('/api/advanced/deploy/auto', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
