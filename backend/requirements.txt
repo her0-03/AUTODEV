@@ -19,3 +19,8 @@ pandas==2.2.0
 Pillow==10.2.0
 pytesseract==0.3.10
 markdown==3.5.2
+flask==3.0.0
+flask-wtf==1.2.1
+flask-login==0.6.3
+requests==2.31.0
+gunicorn==21.2.0
