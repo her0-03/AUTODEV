@@ -291,41 +291,130 @@ Réponds en JSON avec améliorations."""
         
         # 1. Frontend Architect: HTML + CSS
         frontend = self.agents["frontend_architect"]
-        html_prompt = f"""Tu es {frontend.role}.
-Crée une page HTML/CSS ULTRA-MODERNE niveau Meta/Vercel:
+        html_prompt = f"""Tu es {frontend.role} - Expert Frontend Meta/Vercel.
+
+Crée UNE PAGE HTML/CSS PROFESSIONNELLE ULTRA-MODERNE:
 
 Description: {description}
 Design: {json.dumps(design)}
 
-EXIGENCES SOTA:
-- HTML5 sémantique parfait
-- CSS moderne (Grid, Flexbox, Custom Properties)
-- Glassmorphism/Neomorphism effects
-- Gradients animés
-- Backdrop filters
-- Responsive mobile-first
-- Dark mode support
-- Accessibility ARIA
-- Performance optimisé
+⚠️ INSTRUCTIONS CRITIQUES - SUIS EXACTEMENT:
 
-Retourne JSON:
+1. HTML STRUCTURE:
+   - DOCTYPE html complet
+   - <head> avec meta charset, viewport, title
+   - <body> avec contenu réel (pas de placeholders)
+   - Sections: header, main, footer
+   - Utilise Tailwind CSS CDN: <script src="https://cdn.tailwindcss.com"></script>
+
+2. CSS MODERNE (dans <style> tag):
+   - Variables CSS: :root {{ --primary: #6366f1; }}
+   - Glassmorphism: background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+   - Gradients animés: background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+   - Animations @keyframes: fadeIn, slideUp, gradient
+   - Responsive: @media queries
+   - Dark mode: @media (prefers-color-scheme: dark)
+
+3. CONTENU RÉEL:
+   - Textes réels (pas "Lorem ipsum")
+   - Boutons fonctionnels
+   - Navigation complète
+   - Formulaires avec inputs
+   - Cards avec contenu
+
+4. CLASSES TAILWIND:
+   - Layout: flex, grid, container, mx-auto
+   - Spacing: p-8, m-4, space-y-6
+   - Colors: bg-blue-600, text-white
+   - Effects: hover:scale-105, transition-all
+   - Responsive: md:grid-cols-2, lg:grid-cols-3
+
+EXEMPLE DE STRUCTURE ATTENDUE:
+```html
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Title</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {{
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+        }}
+        body {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }}
+        .glass {{
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+    </style>
+</head>
+<body class="min-h-screen text-white">
+    <header class="glass p-6">
+        <nav class="container mx-auto flex justify-between">
+            <h1 class="text-2xl font-bold">Logo</h1>
+            <div class="space-x-4">
+                <a href="#" class="hover:text-purple-200">Home</a>
+                <a href="#" class="hover:text-purple-200">About</a>
+            </div>
+        </nav>
+    </header>
+    <main class="container mx-auto p-8">
+        <section class="text-center py-20">
+            <h2 class="text-5xl font-bold mb-6">Hero Title</h2>
+            <p class="text-xl mb-8">Description text</p>
+            <button class="bg-white text-purple-600 px-8 py-3 rounded-full hover:scale-105 transition-transform">CTA Button</button>
+        </section>
+    </main>
+</body>
+</html>
+```
+
+RÉPONDS EN JSON VALIDE:
 {{
-  "html": "code HTML complet",
-  "css": "code CSS complet"
-}}"""
+  "html": "<code HTML complet comme exemple ci-dessus>",
+  "css": "<CSS additionnel si nécessaire>"
+}}
+
+⚠️ NE RETOURNE PAS de texte explicatif, UNIQUEMENT le JSON!"""
 
         html_response = self.client.chat.completions.create(
             model=frontend.model,
             messages=[{"role": "user", "content": html_prompt}],
-            temperature=frontend.temperature,
-            max_tokens=frontend.max_tokens
+            temperature=0.3,  # Plus précis
+            max_tokens=8000
         )
         
         html_content = html_response.choices[0].message.content
-        if "```json" in html_content:
-            html_content = html_content.split("```json")[1].split("```")[0]
-        html_data = json.loads(html_content.strip())
-        code.update(html_data)
+        
+        # Extraction robuste du JSON
+        try:
+            if "```json" in html_content:
+                html_content = html_content.split("```json")[1].split("```")[0]
+            elif "```" in html_content:
+                html_content = html_content.split("```")[1].split("```")[0]
+            
+            html_data = json.loads(html_content.strip())
+            
+            # Vérifier que le HTML est valide
+            if "html" in html_data and "<!DOCTYPE" in html_data["html"]:
+                code.update(html_data)
+            else:
+                # Fallback: créer HTML basique
+                code["html"] = self._create_fallback_html(description, design)
+                code["css"] = ""
+        except Exception as e:
+            print(f"  ⚠️ Erreur parsing JSON: {e}, utilisation fallback")
+            code["html"] = self._create_fallback_html(description, design)
+            code["css"] = ""
         
         print(f"  ✅ {frontend.name}: HTML/CSS généré")
         
@@ -583,6 +672,174 @@ Retourne le code corrigé en JSON."""
             "seo": 90,
             "design": 96
         }
+    
+    def _create_fallback_html(self, description: str, design: Dict) -> str:
+        """Crée un HTML fallback de qualité si le modèle échoue"""
+        primary = design.get("colors", {}).get("primary", "#6366f1")
+        secondary = design.get("colors", {}).get("secondary", "#8b5cf6")
+        theme = design.get("theme", "glassmorphism")
+        
+        return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{description}">
+    <title>{description}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {{
+            --primary: {primary};
+            --secondary: {secondary};
+        }}
+        
+        body {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }}
+        
+        .glass-card {{
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37),
+                        inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }}
+        
+        .glass-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
+        }}
+        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(30px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        @keyframes gradient {{
+            0%, 100% {{ background-position: 0% 50%; }}
+            50% {{ background-position: 100% 50%; }}
+        }}
+        
+        .animate-fade-in {{
+            animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }}
+        
+        .animate-gradient {{
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+        }}
+        
+        nav {{
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }}
+    </style>
+</head>
+<body class="text-white">
+    <nav class="p-4 shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                🚀 Application
+            </h1>
+            <div class="space-x-6">
+                <a href="#" class="hover:text-purple-200 transition-colors">Accueil</a>
+                <a href="#" class="hover:text-purple-200 transition-colors">À propos</a>
+                <a href="#" class="hover:text-purple-200 transition-colors">Contact</a>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="container mx-auto p-8">
+        <section class="text-center py-20 animate-fade-in">
+            <h2 class="text-6xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent animate-gradient">
+                {description}
+            </h2>
+            <p class="text-xl mb-8 text-gray-200 max-w-2xl mx-auto">
+                Une application moderne et performante générée par l'IA Factory avec 13 agents spécialisés.
+            </p>
+            <div class="flex gap-4 justify-center">
+                <button class="bg-white text-purple-600 px-8 py-3 rounded-full font-semibold hover:scale-105 transition-transform shadow-lg">
+                    Démarrer
+                </button>
+                <button class="glass-card px-8 py-3 rounded-full font-semibold hover:scale-105 transition-transform">
+                    En savoir plus
+                </button>
+            </div>
+        </section>
+        
+        <section class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 py-12">
+            <div class="glass-card animate-fade-in">
+                <div class="text-5xl mb-4">🎨</div>
+                <h3 class="text-2xl font-bold mb-2">Design Moderne</h3>
+                <p class="text-gray-300">Interface utilisateur ultra-moderne avec glassmorphism et animations fluides.</p>
+            </div>
+            
+            <div class="glass-card animate-fade-in" style="animation-delay: 0.1s">
+                <div class="text-5xl mb-4">⚡</div>
+                <h3 class="text-2xl font-bold mb-2">Performance</h3>
+                <p class="text-gray-300">Optimisé pour des performances exceptionnelles et une expérience fluide.</p>
+            </div>
+            
+            <div class="glass-card animate-fade-in" style="animation-delay: 0.2s">
+                <div class="text-5xl mb-4">🔒</div>
+                <h3 class="text-2xl font-bold mb-2">Sécurité</h3>
+                <p class="text-gray-300">Sécurisé selon les standards OWASP et les meilleures pratiques.</p>
+            </div>
+        </section>
+        
+        <section class="glass-card my-12 animate-fade-in">
+            <h3 class="text-3xl font-bold mb-6 text-center">Contactez-nous</h3>
+            <form class="max-w-md mx-auto space-y-4">
+                <input type="text" placeholder="Votre nom" 
+                       class="w-full p-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all text-white placeholder-gray-300">
+                <input type="email" placeholder="Votre email" 
+                       class="w-full p-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all text-white placeholder-gray-300">
+                <textarea placeholder="Votre message" rows="4"
+                          class="w-full p-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all text-white placeholder-gray-300"></textarea>
+                <button type="submit" 
+                        class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:scale-105 transition-transform shadow-lg hover:shadow-purple-500/50">
+                    Envoyer
+                </button>
+            </form>
+        </section>
+    </main>
+    
+    <footer class="glass-card mt-12 p-8 text-center">
+        <p class="text-gray-300">&copy; 2024 Généré par AI Factory. Tous droits réservés.</p>
+    </footer>
+    
+    <script>
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {{
+            anchor.addEventListener('click', function (e) {{
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) target.scrollIntoView({{ behavior: 'smooth' }});
+            }});
+        }});
+        
+        // Intersection Observer pour animations
+        const observer = new IntersectionObserver((entries) => {{
+            entries.forEach(entry => {{
+                if (entry.isIntersecting) {{
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }}
+            }});
+        }}, {{ threshold: 0.1 }});
+        
+        document.querySelectorAll('.glass-card').forEach(card => observer.observe(card));
+        
+        console.log('🎨 Page générée par AI Factory - 13 agents IA');
+    </script>
+</body>
+</html>"""
 
 
 # ============================================
