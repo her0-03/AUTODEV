@@ -53,7 +53,7 @@ class AIFactory:
             # 💻 FRONTEND TEAM
             "frontend_architect": AIAgent(
                 name="Frontend Architect",
-                model="llama-4-maverick-17b-128e-instruct",
+                model="meta-llama/llama-4-maverick-17b-128e-instruct",
                 role="Senior Frontend Engineer (Meta niveau)",
                 expertise=["HTML5", "CSS3", "Tailwind", "Animations", "Performance"],
                 temperature=0.7,
@@ -109,7 +109,7 @@ class AIFactory:
             
             "code_reviewer": AIAgent(
                 name="Code Reviewer",
-                model="llama-4-scout-17b-16e-instruct",
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
                 role="Senior Code Reviewer (Google niveau)",
                 expertise=["Code quality", "Best practices", "Performance", "Maintainability"],
                 temperature=0.4,
@@ -291,128 +291,41 @@ Réponds en JSON avec améliorations."""
         
         # 1. Frontend Architect: HTML + CSS
         frontend = self.agents["frontend_architect"]
-        html_prompt = f"""Tu es {frontend.role} - Expert Frontend Meta/Vercel.
+        html_prompt = f"""GÉNÈRE UNIQUEMENT DU CODE HTML. PAS D'EXPLICATIONS.
 
-Crée UNE PAGE HTML/CSS PROFESSIONNELLE ULTRA-MODERNE:
+Page: {description}
 
-Description: {description}
-Design: {json.dumps(design)}
+RÈGLES:
+1. Commence par <!DOCTYPE html>
+2. Inclus <script src="https://cdn.tailwindcss.com"></script>
+3. Ajoute <style> avec glassmorphism
+4. PAS de texte avant/après le HTML
+5. PAS de markdown ```
 
-⚠️ INSTRUCTIONS CRITIQUES - SUIS EXACTEMENT:
-
-1. HTML STRUCTURE:
-   - DOCTYPE html complet
-   - <head> avec meta charset, viewport, title
-   - <body> avec contenu réel (pas de placeholders)
-   - Sections: header, main, footer
-   - Utilise Tailwind CSS CDN: <script src="https://cdn.tailwindcss.com"></script>
-
-2. CSS MODERNE (dans <style> tag):
-   - Variables CSS: :root {{ --primary: #6366f1; }}
-   - Glassmorphism: background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
-   - Gradients animés: background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-   - Animations @keyframes: fadeIn, slideUp, gradient
-   - Responsive: @media queries
-   - Dark mode: @media (prefers-color-scheme: dark)
-
-3. CONTENU RÉEL:
-   - Textes réels (pas "Lorem ipsum")
-   - Boutons fonctionnels
-   - Navigation complète
-   - Formulaires avec inputs
-   - Cards avec contenu
-
-4. CLASSES TAILWIND:
-   - Layout: flex, grid, container, mx-auto
-   - Spacing: p-8, m-4, space-y-6
-   - Colors: bg-blue-600, text-white
-   - Effects: hover:scale-105, transition-all
-   - Responsive: md:grid-cols-2, lg:grid-cols-3
-
-EXEMPLE DE STRUCTURE ATTENDUE:
-```html
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page Title</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root {{
-            --primary: #6366f1;
-            --secondary: #8b5cf6;
-        }}
-        body {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }}
-        .glass {{
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }}
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(20px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-    </style>
-</head>
-<body class="min-h-screen text-white">
-    <header class="glass p-6">
-        <nav class="container mx-auto flex justify-between">
-            <h1 class="text-2xl font-bold">Logo</h1>
-            <div class="space-x-4">
-                <a href="#" class="hover:text-purple-200">Home</a>
-                <a href="#" class="hover:text-purple-200">About</a>
-            </div>
-        </nav>
-    </header>
-    <main class="container mx-auto p-8">
-        <section class="text-center py-20">
-            <h2 class="text-5xl font-bold mb-6">Hero Title</h2>
-            <p class="text-xl mb-8">Description text</p>
-            <button class="bg-white text-purple-600 px-8 py-3 rounded-full hover:scale-105 transition-transform">CTA Button</button>
-        </section>
-    </main>
-</body>
-</html>
-```
-
-RÉPONDS EN JSON VALIDE:
-{{
-  "html": "<code HTML complet comme exemple ci-dessus>",
-  "css": "<CSS additionnel si nécessaire>"
-}}
-
-⚠️ NE RETOURNE PAS de texte explicatif, UNIQUEMENT le JSON!"""
+GÉNÈRE LE HTML MAINTENANT:"""
 
         html_response = self.client.chat.completions.create(
             model=frontend.model,
-            messages=[{"role": "user", "content": html_prompt}],
-            temperature=0.3,  # Plus précis
+            messages=[
+                {"role": "system", "content": "Tu retournes UNIQUEMENT du code HTML valide. Pas d'explications, pas de markdown."},
+                {"role": "user", "content": html_prompt}
+            ],
+            temperature=0.1,
             max_tokens=8000
         )
         
-        html_content = html_response.choices[0].message.content
+        html_content = html_response.choices[0].message.content.strip()
         
-        # Extraction robuste du JSON
-        try:
-            if "```json" in html_content:
-                html_content = html_content.split("```json")[1].split("```")[0]
-            elif "```" in html_content:
-                html_content = html_content.split("```")[1].split("```")[0]
-            
-            html_data = json.loads(html_content.strip())
-            
-            # Vérifier que le HTML est valide
-            if "html" in html_data and "<!DOCTYPE" in html_data["html"]:
-                code.update(html_data)
-            else:
-                # Fallback: créer HTML basique
-                code["html"] = self._create_fallback_html(description, design)
-                code["css"] = ""
-        except Exception as e:
-            print(f"  ⚠️ Erreur parsing JSON: {e}, utilisation fallback")
+        # Nettoyage agressif
+        if '<!DOCTYPE' in html_content:
+            html_content = '<!DOCTYPE' + html_content.split('<!DOCTYPE', 1)[1]
+        html_content = html_content.replace('```html', '').replace('```', '')
+        
+        # Vérifier validité
+        if '<!DOCTYPE' in html_content and '</html>' in html_content:
+            code["html"] = html_content
+            code["css"] = ""
+        else:
             code["html"] = self._create_fallback_html(description, design)
             code["css"] = ""
         

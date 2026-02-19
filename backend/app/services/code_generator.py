@@ -6,14 +6,17 @@ from typing import Dict
 import json
 from .ai_service import AIService
 from .ai_factory import AIFactory
+from .quantum_ai import QuantumAI
 from .security_analyzer import SecurityAnalyzer
 from .deployment_service import DeploymentService
+import asyncio
 
 class CodeGenerator:
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
         self.ai_service = AIService()
         self.ai_factory = AIFactory(os.environ.get('GROQ_API_KEY', '')) if os.environ.get('GROQ_API_KEY') else None
+        self.quantum_ai = QuantumAI(os.environ.get('GROQ_API_KEY', '')) if os.environ.get('GROQ_API_KEY') else None
         self.security_analyzer = SecurityAnalyzer()
         self.deployment_service = DeploymentService()
     
@@ -261,141 +264,29 @@ COPY . .
 CMD ["python", "app.py"]""")
     
     def _generate_html_page(self, page: Dict, app_config: Dict) -> str:
-        """Génère des pages HTML ULTRA-MODERNES avec AI Factory (10+ modèles Groq)"""
+        """🌌 QUANTUM AI - Génération parallèle révolutionnaire"""
         
-        # Utiliser AI Factory si disponible (niveau FAANG)
-        if self.ai_factory:
+        # 🌌 QUANTUM AI: Génération de 10 variantes en parallèle
+        if self.quantum_ai:
             try:
-                print(f"[AI FACTORY] Génération SOTA pour {page['title']}...")
-                import asyncio
-                result = asyncio.run(self.ai_factory.generate_sota_page(
-                    description=f"Page: {page['title']} avec {', '.join(page.get('components', []))}",
-                    page_config=page
+                description = f"{page['title']}: {page.get('description', '')} - Components: {', '.join(page.get('components', []))}"
+                print(f"\n🌌 Quantum AI: {page['title']}...")
+                
+                result = asyncio.run(self.quantum_ai.quantum_generate(
+                    description=description,
+                    variants=10
                 ))
                 
-                # Intégrer HTML + CSS + JS
-                html = result.get('html', '')
-                css = result.get('css', '')
-                js = result.get('js', '')
-                
-                if html:
-                    # Ajouter CSS
-                    if css and '</head>' in html:
-                        html = html.replace('</head>', f'<style>\n{css}\n</style>\n</head>')
-                    # Ajouter JS
-                    if js and '</body>' in html:
-                        html = html.replace('</body>', f'<script>\n{js}\n</script>\n</body>')
-                    
-                    print(f"[AI FACTORY] ✅ Page SOTA générée (Score: {result.get('report', {}).get('overall_score', 0):.1f}/100)")
-                    return html
+                if result["score"] >= 70 and result["code"].get("html"):
+                    print(f"  ✅ Score: {result['score']:.1f}/100 - {result['variants_generated']} variantes")
+                    return result["code"]["html"]
+                else:
+                    print(f"  ⚠️ Score faible ({result['score']:.1f}) - Fallback")
             except Exception as e:
-                print(f"[AI FACTORY] Erreur: {e}, fallback sur méthode standard")
+                print(f"  ⚠️ Quantum AI erreur: {str(e)[:80]} - Fallback")
         
-        # Fallback: Méthode standard avec 4 modèles
-        if self.ai_service.client:
-            # ÉTAPE 1: Design concept (modèle design)
-            design_prompt = f"""Tu es un designer UI/UX expert. Crée un concept design ULTRA-MODERNE pour:
-Page: {page['title']}
-Route: {page['route']}
-Components: {', '.join(page.get('components', []))}
-
-Réponds en JSON:
-{{
-  "theme": "glassmorphism/neomorphism/cyberpunk",
-  "colors": {{"primary": "#hex", "secondary": "#hex", "accent": "#hex"}},
-  "effects": ["gradient animé", "parallax", "3D hover"],
-  "layout": "grid moderne avec sections"
-}}
-
-Utilise tendances 2024: glassmorphism, gradients animés, micro-interactions."""
-            
-            try:
-                design_response = self.ai_service.client.chat.completions.create(
-                    model=self.ai_service.analysis_model,  # Llama-3.3-70b pour design
-                    messages=[{"role": "user", "content": design_prompt}],
-                    temperature=0.9
-                )
-                design_content = design_response.choices[0].message.content
-                if "```json" in design_content:
-                    design_content = design_content.split("```json")[1].split("```")[0]
-                design = json.loads(design_content.strip())
-            except:
-                design = {"theme": "glassmorphism", "colors": {"primary": "#6366f1", "secondary": "#8b5cf6", "accent": "#ec4899"}}
-            
-            # ÉTAPE 2: HTML structure (modèle code)
-            html_prompt = f"""Crée une page HTML ULTRA-MODERNE SOTA (State Of The Art):
-Page: {page['title']}
-Components: {', '.join(page.get('components', []))}
-Design: {json.dumps(design)}
-
-EXIGENCES SOTA:
-- HTML5 sémantique (header, nav, main, section, footer)
-- Tailwind CSS + custom CSS variables
-- Responsive mobile-first
-- Accessibilité ARIA
-- Meta tags SEO + Open Graph
-- Animations CSS modernes
-- Glassmorphism/Neomorphism effects
-- Gradients animés
-- Micro-interactions hover
-- Dark mode support
-- Loading animations
-- Smooth scroll
-
-Retourne UNIQUEMENT le code HTML complet avec <style> intégré."""
-            
-            try:
-                html_response = self.ai_service.client.chat.completions.create(
-                    model=self.ai_service.code_model,  # Llama-4 Maverick pour code
-                    messages=[{"role": "user", "content": html_prompt}],
-                    temperature=0.7,
-                    max_tokens=4000
-                )
-                html_code = html_response.choices[0].message.content.strip()
-                if html_code.startswith('```'):
-                    html_code = html_code.split('\n', 1)[1].rsplit('```', 1)[0]
-                
-                # ÉTAPE 3: JavaScript interactif (modèle rapide)
-                js_prompt = f"""Ajoute du JavaScript ULTRA-MODERNE pour:
-Page: {page['title']}
-
-Fonctionnalités JS:
-- Scroll reveal animations
-- Parallax effects
-- Smooth scrolling
-- Intersection Observer
-- Cursor custom animations
-- Loading animations
-- Dark mode toggle
-- Micro-interactions
-- Form validation moderne
-
-Utilise vanilla JS ES6+. Retourne UNIQUEMENT le code <script>."""
-                
-                js_response = self.ai_service.client.chat.completions.create(
-                    model=self.ai_service.fast_model,  # Llama-3.1-8b pour JS rapide
-                    messages=[{"role": "user", "content": js_prompt}],
-                    temperature=0.8,
-                    max_tokens=2000
-                )
-                js_code = js_response.choices[0].message.content.strip()
-                if js_code.startswith('```'):
-                    js_code = js_code.split('\n', 1)[1].rsplit('```', 1)[0]
-                
-                # Intégrer JS dans HTML
-                if "</body>" in html_code:
-                    html_code = html_code.replace("</body>", f"{js_code}\n</body>")
-                
-                return html_code
-            except Exception as e:
-                print(f"[SOTA] Erreur génération: {e}")
-                pass
-        
-        
-        # Enhanced SOTA fallback avec glassmorphism
-        primary = design.get("colors", {}).get("primary", "#6366f1")
-        secondary = design.get("colors", {}).get("secondary", "#8b5cf6")
-        accent = design.get("colors", {}).get("accent", "#ec4899")
+        # Fallback de qualité
+        design = {"theme": "glassmorphism", "colors": {"primary": "#6366f1", "secondary": "#8b5cf6", "accent": "#ec4899"}}
         
         components_html = ""
         for comp in page.get('components', []):
