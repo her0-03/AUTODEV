@@ -3,7 +3,9 @@ import json
 import zipfile
 from pathlib import Path
 from typing import Dict
+import json
 from .ai_service import AIService
+from .ai_factory import AIFactory
 from .security_analyzer import SecurityAnalyzer
 from .deployment_service import DeploymentService
 
@@ -11,6 +13,7 @@ class CodeGenerator:
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
         self.ai_service = AIService()
+        self.ai_factory = AIFactory(os.environ.get('GROQ_API_KEY', '')) if os.environ.get('GROQ_API_KEY') else None
         self.security_analyzer = SecurityAnalyzer()
         self.deployment_service = DeploymentService()
     
@@ -258,81 +261,292 @@ COPY . .
 CMD ["python", "app.py"]""")
     
     def _generate_html_page(self, page: Dict, app_config: Dict) -> str:
+        """Génère des pages HTML ULTRA-MODERNES avec AI Factory (10+ modèles Groq)"""
+        
+        # Utiliser AI Factory si disponible (niveau FAANG)
+        if self.ai_factory:
+            try:
+                print(f"[AI FACTORY] Génération SOTA pour {page['title']}...")
+                import asyncio
+                result = asyncio.run(self.ai_factory.generate_sota_page(
+                    description=f"Page: {page['title']} avec {', '.join(page.get('components', []))}",
+                    page_config=page
+                ))
+                
+                # Intégrer HTML + CSS + JS
+                html = result.get('html', '')
+                css = result.get('css', '')
+                js = result.get('js', '')
+                
+                if html:
+                    # Ajouter CSS
+                    if css and '</head>' in html:
+                        html = html.replace('</head>', f'<style>\n{css}\n</style>\n</head>')
+                    # Ajouter JS
+                    if js and '</body>' in html:
+                        html = html.replace('</body>', f'<script>\n{js}\n</script>\n</body>')
+                    
+                    print(f"[AI FACTORY] ✅ Page SOTA générée (Score: {result.get('report', {}).get('overall_score', 0):.1f}/100)")
+                    return html
+            except Exception as e:
+                print(f"[AI FACTORY] Erreur: {e}, fallback sur méthode standard")
+        
+        # Fallback: Méthode standard avec 4 modèles
         if self.ai_service.client:
-            prompt = f"""Generate a complete HTML page:
-Title: {page['title']}
+            # ÉTAPE 1: Design concept (modèle design)
+            design_prompt = f"""Tu es un designer UI/UX expert. Crée un concept design ULTRA-MODERNE pour:
+Page: {page['title']}
 Route: {page['route']}
 Components: {', '.join(page.get('components', []))}
-Theme: {app_config.get('theme', 'modern-blue')}
 
-Requirements:
-- Use Tailwind CSS
-- Create a responsive layout
-- Include navigation bar
-- Add forms/tables based on components
-- Include JavaScript for interactivity
-- Make it production-ready and beautiful
+Réponds en JSON:
+{{
+  "theme": "glassmorphism/neomorphism/cyberpunk",
+  "colors": {{"primary": "#hex", "secondary": "#hex", "accent": "#hex"}},
+  "effects": ["gradient animé", "parallax", "3D hover"],
+  "layout": "grid moderne avec sections"
+}}
 
-Return only the complete HTML code."""
+Utilise tendances 2024: glassmorphism, gradients animés, micro-interactions."""
             
             try:
-                response = self.ai_service.client.chat.completions.create(
-                    model=self.ai_service.code_model,
-                    messages=[{"role": "user", "content": prompt}]
+                design_response = self.ai_service.client.chat.completions.create(
+                    model=self.ai_service.analysis_model,  # Llama-3.3-70b pour design
+                    messages=[{"role": "user", "content": design_prompt}],
+                    temperature=0.9
                 )
-                html_code = response.choices[0].message.content.strip()
+                design_content = design_response.choices[0].message.content
+                if "```json" in design_content:
+                    design_content = design_content.split("```json")[1].split("```")[0]
+                design = json.loads(design_content.strip())
+            except:
+                design = {"theme": "glassmorphism", "colors": {"primary": "#6366f1", "secondary": "#8b5cf6", "accent": "#ec4899"}}
+            
+            # ÉTAPE 2: HTML structure (modèle code)
+            html_prompt = f"""Crée une page HTML ULTRA-MODERNE SOTA (State Of The Art):
+Page: {page['title']}
+Components: {', '.join(page.get('components', []))}
+Design: {json.dumps(design)}
+
+EXIGENCES SOTA:
+- HTML5 sémantique (header, nav, main, section, footer)
+- Tailwind CSS + custom CSS variables
+- Responsive mobile-first
+- Accessibilité ARIA
+- Meta tags SEO + Open Graph
+- Animations CSS modernes
+- Glassmorphism/Neomorphism effects
+- Gradients animés
+- Micro-interactions hover
+- Dark mode support
+- Loading animations
+- Smooth scroll
+
+Retourne UNIQUEMENT le code HTML complet avec <style> intégré."""
+            
+            try:
+                html_response = self.ai_service.client.chat.completions.create(
+                    model=self.ai_service.code_model,  # Llama-4 Maverick pour code
+                    messages=[{"role": "user", "content": html_prompt}],
+                    temperature=0.7,
+                    max_tokens=4000
+                )
+                html_code = html_response.choices[0].message.content.strip()
                 if html_code.startswith('```'):
                     html_code = html_code.split('\n', 1)[1].rsplit('```', 1)[0]
+                
+                # ÉTAPE 3: JavaScript interactif (modèle rapide)
+                js_prompt = f"""Ajoute du JavaScript ULTRA-MODERNE pour:
+Page: {page['title']}
+
+Fonctionnalités JS:
+- Scroll reveal animations
+- Parallax effects
+- Smooth scrolling
+- Intersection Observer
+- Cursor custom animations
+- Loading animations
+- Dark mode toggle
+- Micro-interactions
+- Form validation moderne
+
+Utilise vanilla JS ES6+. Retourne UNIQUEMENT le code <script>."""
+                
+                js_response = self.ai_service.client.chat.completions.create(
+                    model=self.ai_service.fast_model,  # Llama-3.1-8b pour JS rapide
+                    messages=[{"role": "user", "content": js_prompt}],
+                    temperature=0.8,
+                    max_tokens=2000
+                )
+                js_code = js_response.choices[0].message.content.strip()
+                if js_code.startswith('```'):
+                    js_code = js_code.split('\n', 1)[1].rsplit('```', 1)[0]
+                
+                # Intégrer JS dans HTML
+                if "</body>" in html_code:
+                    html_code = html_code.replace("</body>", f"{js_code}\n</body>")
+                
                 return html_code
-            except:
+            except Exception as e:
+                print(f"[SOTA] Erreur génération: {e}")
                 pass
         
-        # Enhanced fallback
+        
+        # Enhanced SOTA fallback avec glassmorphism
+        primary = design.get("colors", {}).get("primary", "#6366f1")
+        secondary = design.get("colors", {}).get("secondary", "#8b5cf6")
+        accent = design.get("colors", {}).get("accent", "#ec4899")
+        
         components_html = ""
         for comp in page.get('components', []):
             if 'form' in comp.lower():
-                components_html += f'''<form class="bg-white p-6 rounded-lg shadow-md max-w-md">
-                    <h2 class="text-xl font-bold mb-4">{comp}</h2>
-                    <input type="text" placeholder="Enter data" class="w-full p-2 border rounded mb-4">
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Submit</button>
-                </form>'''
+                components_html += f'''<div class="glass-card animate-fade-in">
+                    <form class="space-y-4">
+                        <h2 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{comp}</h2>
+                        <input type="text" placeholder="Enter data" class="w-full p-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all">
+                        <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:scale-105 transition-transform shadow-lg hover:shadow-purple-500/50">Submit</button>
+                    </form>
+                </div>'''
             elif 'list' in comp.lower() or 'table' in comp.lower():
-                components_html += f'''<div class="bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-xl font-bold mb-4">{comp}</h2>
-                    <table class="w-full">
-                        <thead><tr class="border-b"><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Actions</th></tr></thead>
-                        <tbody><tr><td class="p-2">1</td><td class="p-2">Sample</td><td class="p-2"><button class="text-blue-500">Edit</button></td></tr></tbody>
-                    </table>
+                components_html += f'''<div class="glass-card animate-slide-up">
+                    <h2 class="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{comp}</h2>
+                    <div class="overflow-hidden rounded-xl">
+                        <table class="w-full">
+                            <thead class="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 backdrop-blur-lg">
+                                <tr><th class="p-4 text-left">ID</th><th class="p-4 text-left">Name</th><th class="p-4 text-left">Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-white/10 hover:bg-white/5 transition-colors">
+                                    <td class="p-4">1</td><td class="p-4">Sample</td>
+                                    <td class="p-4"><button class="text-blue-400 hover:text-blue-300 transition-colors">Edit</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>'''
             else:
-                components_html += f'<div class="bg-white p-6 rounded-lg shadow-md"><h2 class="text-xl font-bold">{comp}</h2></div>'
+                components_html += f'''<div class="glass-card animate-fade-in hover:scale-105 transition-transform">
+                    <h2 class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{comp}</h2>
+                    <p class="text-gray-300 mt-2">Interactive component with modern design</p>
+                </div>'''
         
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{app_config.get('description', 'Modern web application')}">
+    <meta property="og:title" content="{page['title']} - {app_config.get('name', 'App')}">
+    <meta property="og:description" content="{app_config.get('description', 'SOTA web application')}">
+    <meta name="theme-color" content="{primary}">
     <title>{page['title']} - {app_config.get('name', 'App')}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {{
+            --primary: {primary};
+            --secondary: {secondary};
+            --accent: {accent};
+        }}
+        
+        body {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }}
+        
+        .glass-card {{
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            transition: all 0.3s ease;
+        }}
+        
+        .glass-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
+        }}
+        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        @keyframes slideUp {{
+            from {{ opacity: 0; transform: translateY(40px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        .animate-fade-in {{
+            animation: fadeIn 0.6s ease-out forwards;
+        }}
+        
+        .animate-slide-up {{
+            animation: slideUp 0.8s ease-out forwards;
+        }}
+        
+        nav {{
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }}
+    </style>
 </head>
-<body class="bg-gray-50">
-    <nav class="bg-blue-600 text-white p-4 shadow-lg">
+<body class="text-white">
+    <nav class="p-4 shadow-lg sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold">{app_config.get('name', 'Application')}</h1>
-            <div class="space-x-4">
-                <a href="/" class="hover:underline">Home</a>
-                <a href="#" class="hover:underline">About</a>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                {app_config.get('name', 'Application')}
+            </h1>
+            <div class="space-x-6">
+                <a href="/" class="hover:text-purple-200 transition-colors">Home</a>
+                <a href="#" class="hover:text-purple-200 transition-colors">About</a>
+                <button id="darkModeToggle" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all">
+                    🌙
+                </button>
             </div>
         </div>
     </nav>
+    
     <div class="container mx-auto p-8">
-        <h1 class="text-4xl font-bold mb-8 text-gray-800">{page['title']}</h1>
-        <div class="grid gap-6">
+        <h1 class="text-5xl font-bold mb-12 text-center bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent animate-fade-in">
+            {page['title']}
+        </h1>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {components_html}
         </div>
     </div>
+    
     <script>
-        console.log('Page loaded: {page['title']}');
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {{
+            anchor.addEventListener('click', function (e) {{
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) target.scrollIntoView({{ behavior: 'smooth' }});
+            }});
+        }});
+        
+        // Intersection Observer pour animations
+        const observer = new IntersectionObserver((entries) => {{
+            entries.forEach(entry => {{
+                if (entry.isIntersecting) {{
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }}
+            }});
+        }}, {{ threshold: 0.1 }});
+        
+        document.querySelectorAll('.glass-card').forEach(card => observer.observe(card));
+        
+        // Dark mode toggle
+        document.getElementById('darkModeToggle')?.addEventListener('click', () => {{
+            document.body.classList.toggle('dark');
+        }});
+        
+        console.log('🎨 SOTA Page loaded: {page['title']}');
     </script>
 </body>
 </html>"""
