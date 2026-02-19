@@ -76,7 +76,13 @@ Respond ONLY with valid JSON, no markdown formatting."""
             yield "data: Error: No AI API key configured\n\n"
             return
         
+        import asyncio
+        import time
+        
         try:
+            # Envoyer un heartbeat toutes les 10 secondes pour éviter timeout
+            last_heartbeat = time.time()
+            
             if settings.GROQ_API_KEY:
                 # Utilise le modèle d'analyse pour les documents
                 response = self.client.chat.completions.create(
@@ -85,7 +91,12 @@ Respond ONLY with valid JSON, no markdown formatting."""
                 )
                 content = response.choices[0].message.content
                 for char in content:
+                    # Heartbeat pour garder connexion active
+                    if time.time() - last_heartbeat > 10:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat = time.time()
                     yield f"data: {char}\n\n"
+                    await asyncio.sleep(0.01)  # Petit délai pour streaming fluide
             else:
                 stream = self.client.chat.completions.create(
                     model=self.analysis_model,
@@ -93,6 +104,10 @@ Respond ONLY with valid JSON, no markdown formatting."""
                     stream=True
                 )
                 for chunk in stream:
+                    # Heartbeat pour garder connexion active
+                    if time.time() - last_heartbeat > 10:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat = time.time()
                     if chunk.choices[0].delta.content:
                         yield f"data: {chunk.choices[0].delta.content}\n\n"
         except Exception as e:

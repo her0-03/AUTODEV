@@ -95,13 +95,17 @@ def api_proxy(path):
     if 'analyze-stream' in path:
         def generate():
             try:
-                with requests.get(url, headers=headers, stream=True, timeout=300) as r:
+                # Timeout très long pour SSE (10 minutes)
+                with requests.get(url, headers=headers, stream=True, timeout=600) as r:
                     for chunk in r.iter_content(chunk_size=None, decode_unicode=True):
                         if chunk:
                             yield chunk
+            except requests.exceptions.Timeout:
+                print(f"[SSE PROXY] Timeout après 10 minutes")
+                yield 'data: {"error": "Timeout: L\'analyse prend trop de temps. Réessayez avec moins de documents."}\n\n'
             except Exception as e:
                 print(f"[SSE PROXY] Error: {e}")
-                yield f"data: Error: {str(e)}\n\n"
+                yield f'data: {{"error": "{str(e)}"}}\n\n'
         
         return Response(generate(), mimetype='text/event-stream')
     
@@ -124,7 +128,7 @@ def api_proxy(path):
                 url=url,
                 json=request.get_json(),
                 headers=headers,
-                timeout=180
+                timeout=300  # 5 minutes pour génération de code
             )
         # Gérer form data
         else:

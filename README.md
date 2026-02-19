@@ -152,6 +152,13 @@ del backend\dev.db
 Ctrl + Shift + R
 ```
 
+**Timeout sur Render (analyse longue)**
+- ✅ Heartbeat SSE automatique toutes les 10s
+- ✅ Timeout backend: 5 minutes
+- ✅ Timeout frontend: 10 minutes
+- Si timeout persiste: Réduire la taille des documents
+- Test: `python test_timeout.py`
+
 ## 📊 Performances
 
 - ⚡ Analyse: 30-60s
