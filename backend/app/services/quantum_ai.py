@@ -133,16 +133,16 @@ class QuantumAI:
         for agent in genesis:
             self.agents[agent.id] = agent
     
-    async def quantum_generate(self, description: str, variants: int = 20) -> Dict[str, Any]:
+    async def quantum_generate(self, description: str, variants: int = 50) -> Dict[str, Any]:
         """
         🌌 QUANTUM GENERATION - Génère N variantes en parallèle
         
         Args:
             description: Description du code à générer
-            variants: Nombre de variantes (défaut: 20, max: 100)
+            variants: Nombre de variantes (défaut: 50, max: 200)
         
         Returns:
-            Meilleur code après sélection darwinienne
+            Meilleur code après sélection darwinienne + fusion génétique
         """
         print(f"\n🌌 QUANTUM AI - Génération Parallèle")
         print(f"📊 Variantes: {variants}")

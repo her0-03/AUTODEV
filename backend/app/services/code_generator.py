@@ -274,7 +274,7 @@ CMD ["python", "app.py"]""")
                 
                 result = asyncio.run(self.quantum_ai.quantum_generate(
                     description=description,
-                    variants=10
+                    variants=50
                 ))
                 
                 if result["score"] >= 70 and result["code"].get("html"):

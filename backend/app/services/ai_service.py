@@ -3,17 +3,20 @@ from typing import AsyncGenerator
 from openai import OpenAI
 from groq import Groq
 from ..core.config import settings
+from .document_analyzer import DocumentAnalyzer
 
 class AIService:
     def __init__(self):
         self.client = None
+        self.document_analyzer = None
         if settings.GROQ_API_KEY:
             self.client = Groq(api_key=settings.GROQ_API_KEY)
+            self.document_analyzer = DocumentAnalyzer(settings.GROQ_API_KEY)
             # Modèles spécialisés Groq
-            self.analysis_model = "llama-3.3-70b-versatile"           # Analyse documents
-            self.code_model = "meta-llama/llama-4-maverick-17b-128e-instruct"  # Génération code
-            self.fast_model = "llama-3.1-8b-instant"                  # Validation rapide
-            self.reasoning_model = "meta-llama/llama-4-scout-17b-16e-instruct"  # Raisonnement
+            self.analysis_model = "llama-3.3-70b-versatile"
+            self.code_model = "meta-llama/llama-4-maverick-17b-128e-instruct"
+            self.fast_model = "llama-3.1-8b-instant"
+            self.reasoning_model = "meta-llama/llama-4-scout-17b-16e-instruct"
         elif settings.OPENAI_API_KEY:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
             self.analysis_model = "gpt-4"
@@ -22,55 +25,134 @@ class AIService:
             self.reasoning_model = "gpt-4"
     
     async def analyze_documents_stream(self, documents_content: str) -> AsyncGenerator[str, None]:
-        prompt = f"""You are a senior software architect. Analyze these documents and generate a JSON specification for a web application.
+        prompt = f"""You are a GENIUS software architect with 20 years experience at FAANG companies.
+
+Analyze these documents with EXTREME PRECISION and generate a PERFECT JSON specification.
 
 Files analyzed:
 {documents_content}
 
-Generate a JSON specification with this exact structure:
+Generate a COMPREHENSIVE JSON specification with this exact structure:
 {{
   "appConfig": {{
-    "name": "string",
-    "description": "string",
-    "theme": "modern-blue"
+    "name": "string (creative, professional name)",
+    "description": "string (detailed, compelling description)",
+    "theme": "modern-blue",
+    "features": ["feature1", "feature2", "feature3"],
+    "target_audience": "string",
+    "business_model": "string"
   }},
   "database": {{
     "entities": [
       {{
-        "name": "EntityName",
+        "name": "EntityName (PascalCase)",
+        "description": "What this entity represents",
         "columns": [
           {{
-            "name": "columnName",
-            "type": "string",
+            "name": "columnName (camelCase)",
+            "type": "string|integer|boolean|datetime|text|float",
             "required": true,
-            "unique": false
+            "unique": false,
+            "description": "Column purpose",
+            "validation": "Validation rules"
           }}
         ],
-        "relationships": []
+        "relationships": [
+          {{
+            "type": "one-to-many|many-to-one|many-to-many",
+            "target": "TargetEntity",
+            "description": "Relationship purpose"
+          }}
+        ],
+        "indexes": ["column1", "column2"],
+        "business_rules": ["rule1", "rule2"]
       }}
     ]
   }},
   "api": {{
     "endpoints": [
       {{
-        "method": "GET",
-        "path": "/api/resource",
-        "description": "Endpoint description"
+        "method": "GET|POST|PUT|DELETE|PATCH",
+        "path": "/api/v1/resource",
+        "description": "Detailed endpoint description",
+        "authentication": "required|optional|none",
+        "request_body": {{"field": "type"}},
+        "response": {{"field": "type"}},
+        "error_codes": [400, 401, 404, 500],
+        "rate_limit": "100/hour",
+        "caching": "5 minutes"
       }}
-    ]
+    ],
+    "authentication": {{
+      "type": "JWT|OAuth2|API_Key",
+      "token_expiry": "24h"
+    }},
+    "versioning": "v1",
+    "documentation": "OpenAPI 3.0"
   }},
   "ui": {{
     "pages": [
       {{
         "route": "/page-route",
-        "title": "Page Title",
-        "components": ["ComponentName"]
+        "title": "Page Title (SEO optimized)",
+        "description": "Page purpose and content",
+        "components": ["Header", "Hero", "Features", "CTA", "Footer"],
+        "layout": "default|dashboard|landing",
+        "seo": {{
+          "meta_title": "SEO title",
+          "meta_description": "SEO description",
+          "keywords": ["keyword1", "keyword2"]
+        }},
+        "analytics": ["pageview", "conversion"],
+        "accessibility": "WCAG AAA"
       }}
-    ]
+    ],
+    "theme": {{
+      "primary_color": "#hex",
+      "secondary_color": "#hex",
+      "font_family": "Inter, sans-serif",
+      "design_system": "Material|Tailwind|Custom"
+    }},
+    "responsive": true,
+    "pwa": true,
+    "i18n": ["en", "fr", "es"]
+  }},
+  "infrastructure": {{
+    "hosting": "AWS|GCP|Azure|Render",
+    "database": "PostgreSQL|MySQL|MongoDB",
+    "caching": "Redis|Memcached",
+    "cdn": "Cloudflare|AWS CloudFront",
+    "monitoring": "Datadog|New Relic|Sentry"
+  }},
+  "security": {{
+    "https": true,
+    "cors": {{"origins": ["*"]}},
+    "rate_limiting": true,
+    "input_validation": true,
+    "sql_injection_protection": true,
+    "xss_protection": true,
+    "csrf_protection": true
+  }},
+  "performance": {{
+    "lazy_loading": true,
+    "code_splitting": true,
+    "image_optimization": true,
+    "minification": true,
+    "compression": "gzip|brotli"
   }}
 }}
 
-Respond ONLY with valid JSON, no markdown formatting."""
+IMPORTANT RULES:
+1. Extract ALL entities, relationships, and business logic from documents
+2. Create COMPREHENSIVE API endpoints (CRUD + custom operations)
+3. Design BEAUTIFUL, INTUITIVE UI pages with modern components
+4. Include SECURITY, PERFORMANCE, and SCALABILITY considerations
+5. Add SEO, ACCESSIBILITY, and ANALYTICS features
+6. Think like a SENIOR ARCHITECT at Google/Meta/Amazon
+7. Be CREATIVE but PRACTICAL
+8. Respond ONLY with valid JSON, no markdown formatting
+
+Generate the PERFECT specification NOW:"""
 
         if not self.client:
             yield "data: Error: No AI API key configured\n\n"
@@ -83,11 +165,28 @@ Respond ONLY with valid JSON, no markdown formatting."""
             # Envoyer un heartbeat toutes les 10 secondes pour éviter timeout
             last_heartbeat = time.time()
             
+            # 🔍 MULTI-AGENTS ANALYSIS
+            if self.document_analyzer:
+                yield "data: 🔍 Analyse multi-agents (5 experts)...\n\n"
+                
+                spec = await self.document_analyzer.analyze_documents(documents_content)
+                
+                spec_json = json.dumps(spec, indent=2)
+                for char in spec_json:
+                    if time.time() - last_heartbeat > 10:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat = time.time()
+                    yield f"data: {char}\n\n"
+                    await asyncio.sleep(0.01)
+                return
+            
             if settings.GROQ_API_KEY:
                 # Utilise le modèle d'analyse pour les documents
                 response = self.client.chat.completions.create(
                     model=self.analysis_model,
                     messages=[{"role": "user", "content": prompt}],
+                    temperature=0.8,  # Plus créatif
+                    max_tokens=8000   # Plus de détails
                 )
                 content = response.choices[0].message.content
                 for char in content:
@@ -101,7 +200,9 @@ Respond ONLY with valid JSON, no markdown formatting."""
                 stream = self.client.chat.completions.create(
                     model=self.analysis_model,
                     messages=[{"role": "user", "content": prompt}],
-                    stream=True
+                    stream=True,
+                    temperature=0.8,
+                    max_tokens=8000
                 )
                 for chunk in stream:
                     # Heartbeat pour garder connexion active
