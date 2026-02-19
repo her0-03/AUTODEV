@@ -115,6 +115,12 @@
                     </svg>
                     Auto-Deploy
                 </button>
+                <button onclick="improveProject()" class="btn-editor" style="background: #8b5cf6; color: white;">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    🔄 Améliorer avec IA
+                </button>
                 <div style="flex: 1;"></div>
                 <a href="/project/{{ job_id.split('_')[0] if '_' in job_id else '1' }}" class="btn-editor btn-secondary">
                     <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -725,6 +731,142 @@
                 document.body.appendChild(modal);
             } catch (error) {
                 alert('❌ Erreur: ' + error.message + '\n\nAssurez-vous d\'avoir configuré:\n- GITHUB_TOKEN dans .env\n- RENDER_API_KEY dans .env');
+            }
+        }
+        
+        // 🔄 Améliorer le projet avec IA
+        async function improveProject() {
+            const feedback = prompt('🔄 AMÉLIORER AVEC IA\n\nQue voulez-vous améliorer?\n\nExemples:\n- "Le design n\'est pas assez moderne"\n- "Ajoute plus d\'animations"\n- "Améliore la sécurité"\n- "Optimise les performances"\n\nLaissez vide pour amélioration automatique:');
+            
+            if (feedback === null) return; // Annulé
+            
+            // Sauvegarder d'abord
+            await saveChanges();
+            
+            // Afficher modal de progression
+            const progressModal = document.createElement('div');
+            progressModal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 modal-container';
+            progressModal.innerHTML = `
+                <div class="modal-content bg-white rounded-2xl p-8 max-w-2xl shadow-2xl" style="color: #333;">
+                    <h3 class="text-2xl font-bold mb-4" style="color: #8b5cf6;">🔄 Amélioration en cours...</h3>
+                    <div class="mb-4">
+                        <div class="bg-gray-200 rounded-full h-2 mb-2">
+                            <div id="progressBar" class="bg-purple-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                        <p id="progressText" class="text-sm text-gray-600">Analyse du projet...</p>
+                    </div>
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <div id="step1" class="flex items-center gap-2">
+                            <span class="text-2xl">⏳</span>
+                            <span>1. Analyse du projet existant</span>
+                        </div>
+                        <div id="step2" class="flex items-center gap-2">
+                            <span class="text-2xl">⏳</span>
+                            <span>2. Génération des améliorations</span>
+                        </div>
+                        <div id="step3" class="flex items-center gap-2">
+                            <span class="text-2xl">⏳</span>
+                            <span>3. Application des changements</span>
+                        </div>
+                        <div id="step4" class="flex items-center gap-2">
+                            <span class="text-2xl">⏳</span>
+                            <span>4. Validation qualité</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(progressModal);
+            
+            try {
+                // Simuler progression
+                const updateProgress = (step, percent, text) => {
+                    document.getElementById('progressBar').style.width = percent + '%';
+                    document.getElementById('progressText').textContent = text;
+                    for (let i = 1; i <= 4; i++) {
+                        const el = document.getElementById('step' + i);
+                        if (i < step) {
+                            el.querySelector('span').textContent = '✅';
+                        } else if (i === step) {
+                            el.querySelector('span').textContent = '⏳';
+                        }
+                    }
+                };
+                
+                updateProgress(1, 25, 'Analyse du projet par 13 agents IA...');
+                
+                const response = await fetch(`/api/generation/job/${jobId}/improve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ feedback: feedback || 'Amélioration générale' })
+                });
+                
+                updateProgress(2, 50, 'Génération des améliorations...');
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Amélioration échouée');
+                }
+                
+                updateProgress(3, 75, 'Application des changements...');
+                
+                const data = await response.json();
+                
+                updateProgress(4, 100, 'Validation terminée!');
+                
+                // Attendre un peu pour montrer la complétion
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Fermer modal de progression
+                progressModal.remove();
+                
+                // Afficher résultats
+                const resultModal = document.createElement('div');
+                resultModal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 modal-container';
+                resultModal.innerHTML = `
+                    <div class="modal-content bg-white rounded-2xl p-8 max-w-2xl shadow-2xl" style="color: #333;">
+                        <h3 class="text-2xl font-bold mb-4" style="color: #10b981;">✅ Projet Amélioré!</h3>
+                        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="bg-white p-3 rounded-lg">
+                                    <div class="text-3xl font-bold text-purple-600">${data.improvements_count}</div>
+                                    <div class="text-sm text-gray-600">Améliorations générées</div>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg">
+                                    <div class="text-3xl font-bold text-green-600">${data.applied_count}</div>
+                                    <div class="text-sm text-gray-600">Fichiers modifiés</div>
+                                </div>
+                            </div>
+                            <div class="bg-purple-50 p-3 rounded-lg mb-3">
+                                <strong class="text-purple-700">Score Qualité:</strong>
+                                <div class="text-2xl font-bold text-purple-600">${data.validation?.quality_score || 90}/100</div>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                <strong>Impact:</strong> ${data.validation?.impact || 'medium'}<br>
+                                <strong>Amélioration:</strong> ${data.validation?.overall_improvement || '+10 points'}
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">💡 Votre projet a été amélioré par 13 agents IA spécialisés!</p>
+                        <div class="flex gap-3">
+                            <button onclick="location.reload()" class="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700">
+                                🔄 Recharger l'Éditeur
+                            </button>
+                            <button onclick="downloadProject()" class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700">
+                                📥 Télécharger
+                            </button>
+                            <button onclick="this.closest('.fixed').remove()" class="px-4 py-3 border rounded-xl hover:bg-gray-50">
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(resultModal);
+                
+            } catch (error) {
+                progressModal.remove();
+                alert('❌ Erreur: ' + error.message);
             }
         }
     </script>

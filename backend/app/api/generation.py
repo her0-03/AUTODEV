@@ -12,6 +12,7 @@ from ..models.user import User
 from ..services.document_processor import DocumentProcessor
 from ..services.ai_service import AIService
 from ..services.code_generator import CodeGenerator
+from ..services.ai_improver import AIImprover
 from ..utils.auth import get_current_user
 import asyncio
 
@@ -384,3 +385,53 @@ async def preview_generated_app(job_id: str, db: Session = Depends(get_db), curr
                 raise HTTPException(status_code=500, detail=f"Échec après {max_attempts} tentatives: {str(e)}")
     
     raise HTTPException(status_code=500, detail="Impossible de démarrer")
+
+@router.post("/generation/job/{job_id}/improve")
+async def improve_project(job_id: str, feedback: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """🔄 Améliore un projet existant de façon intelligente et récursive"""
+    project_dir = Path(settings.GENERATED_DIR) / f"project_{job_id}"
+    
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+    
+    try:
+        # Initialiser AI Improver
+        improver = AIImprover(os.environ.get('GROQ_API_KEY', ''))
+        
+        # Améliorer le projet
+        user_feedback = feedback.get("feedback", "")
+        result = improver.improve_project(str(project_dir), user_feedback)
+        
+        if result.get("success"):
+            # Recréer le ZIP avec les améliorations
+            import zipfile
+            zip_path = f"{project_dir}.zip"
+            
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(project_dir):
+                    for file in files:
+                        file_path = Path(root) / file
+                        arcname = file_path.relative_to(project_dir.parent)
+                        zipf.write(file_path, arcname)
+            
+            # Mettre à jour le job
+            job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+            if job:
+                job.output_path = zip_path
+                db.commit()
+            
+            return {
+                "success": True,
+                "message": "Projet amélioré avec succès!",
+                "analysis": result.get("analysis", {}),
+                "improvements_count": len(result.get("improvements", [])),
+                "applied_count": len([a for a in result.get("applied", []) if a.get("status") == "success"]),
+                "validation": result.get("validation", {}),
+                "download_url": f"/api/v1/generation/download/{job_id}"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Échec de l'amélioration")
+            
+    except Exception as e:
+        print(f"[IMPROVE] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
