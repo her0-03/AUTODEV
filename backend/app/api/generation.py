@@ -84,14 +84,22 @@ async def analyze_stream(job_id: str, token: str = None, db: Session = Depends(g
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 @router.post("/generation/job/{job_id}/save-spec")
-def save_spec(job_id: str, spec_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def save_spec(job_id: str, spec_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    print(f"[SAVE-SPEC] Job ID: {job_id}")
+    print(f"[SAVE-SPEC] Spec keys: {list(spec_data.keys())}")
+    
     job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
     if not job:
+        print(f"[SAVE-SPEC] Job not found!")
         raise HTTPException(status_code=404, detail="Job not found")
     
     job.spec_json = json.dumps(spec_data)
     job.status = JobStatus.COMPLETED
     db.commit()
+    db.refresh(job)
+    
+    print(f"[SAVE-SPEC] Saved! Status: {job.status}, Spec length: {len(job.spec_json)}")
+    
     return {"message": "Specification saved", "spec": spec_data}
 
 @router.get("/generation/job/{job_id}/preview")
@@ -122,10 +130,19 @@ def preview_spec(job_id: str, db: Session = Depends(get_db), current_user: User 
         raise HTTPException(status_code=500, detail=f"Invalid specification: {str(e)}")
 
 @router.post("/generation/job/{job_id}/generate")
-def generate_code(job_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def generate_code(job_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
-    if not job or not job.spec_json:
-        raise HTTPException(status_code=404, detail="Job not found or not analyzed")
+    
+    print(f"[GENERATE] Job ID: {job_id}")
+    print(f"[GENERATE] Job found: {job is not None}")
+    
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    if not job.spec_json:
+        print(f"[GENERATE] Job status: {job.status}")
+        print(f"[GENERATE] Spec JSON: {job.spec_json[:100] if job.spec_json else 'None'}")
+        raise HTTPException(status_code=400, detail="Job not analyzed yet - spec_json is empty")
     
     try:
         print(f"[API] Using GENERATED_DIR: {settings.GENERATED_DIR}")
@@ -145,6 +162,7 @@ def generate_code(job_id: str, db: Session = Depends(get_db), current_user: User
         else:
             raise HTTPException(status_code=500, detail="Generated file not found")
     except Exception as e:
+        print(f"[GENERATE] Error: {e}")
         job.status = JobStatus.FAILED
         job.error_log = str(e)
         db.commit()
