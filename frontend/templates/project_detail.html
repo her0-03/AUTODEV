@@ -443,10 +443,9 @@
             }
             
             const output = document.getElementById('analysisOutput');
-            output.innerHTML = '<div class="flex items-center gap-2"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-400"></div><span>Analyse en cours...</span></div>';
+            output.innerHTML = '<div class="flex items-center gap-2"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-400"></div><span>🔍 Analyse multi-agents (5 experts) en cours...</span></div>';
             window.fullResponse = '';
             
-            // Utiliser le proxy Flask au lieu de localhost:8000
             const sseUrl = '/api/generation/analyze-stream/' + jobId + '?token=' + token;
             console.log('[SSE] Connecting to:', sseUrl);
             const eventSource = new EventSource(sseUrl);
@@ -464,7 +463,11 @@
                 eventSource.close();
                 if (window.fullResponse && window.fullResponse.trim()) {
                     output.innerHTML += '\n\n<div class="text-yellow-400 mt-4">✅ Analyse terminée - Sauvegarde automatique...</div>';
-                    setTimeout(() => saveSpec(), 1000);
+                    // Attendre 2 secondes pour que l'utilisateur voie le message
+                    setTimeout(() => {
+                        saveSpec();
+                        showToast('✅ Analyse et sauvegarde terminées!', 'success');
+                    }, 2000);
                 } else {
                     output.innerHTML = '<div class="text-red-400">❌ Erreur: Aucune donnée reçue. Vérifiez les logs backend.</div>';
                     showToast('❌ Analyse échouée', 'error');
