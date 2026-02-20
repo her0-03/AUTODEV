@@ -167,8 +167,6 @@ Generate the PERFECT specification NOW:"""
             
             # 🔍 MULTI-AGENTS ANALYSIS
             if self.document_analyzer:
-                yield "data: 🔍 Analyse multi-agents (5 experts)...\n\n"
-                
                 spec = await self.document_analyzer.analyze_documents(documents_content)
                 
                 spec_json = json.dumps(spec, indent=2)
