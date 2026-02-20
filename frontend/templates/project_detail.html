@@ -459,15 +459,13 @@
                 output.scrollTop = output.scrollHeight;
             };
             
-            eventSource.onerror = function() {
+            eventSource.onerror = async function() {
                 eventSource.close();
                 if (window.fullResponse && window.fullResponse.trim()) {
                     output.innerHTML += '\n\n<div class="text-yellow-400 mt-4">✅ Analyse terminée - Sauvegarde automatique...</div>';
-                    // Attendre 2 secondes pour que l'utilisateur voie le message
-                    setTimeout(() => {
-                        saveSpec();
-                        showToast('✅ Analyse et sauvegarde terminées!', 'success');
-                    }, 2000);
+                    // Attendre 1 seconde pour que l'utilisateur voie le message
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await saveSpec();
                 } else {
                     output.innerHTML = '<div class="text-red-400">❌ Erreur: Aucune donnée reçue. Vérifiez les logs backend.</div>';
                     showToast('❌ Analyse échouée', 'error');
@@ -475,7 +473,7 @@
             };
         }
         
-        function saveSpec() {
+        async function saveSpec() {
             if (!window.fullResponse || window.fullResponse.trim() === '') {
                 showToast('⚠️ Veuillez d\'abord lancer l\'analyse', 'error');
                 return;
@@ -489,20 +487,20 @@
                 jsonStr = jsonStr.trim();
                 
                 const spec = JSON.parse(jsonStr);
-                fetch('http://localhost:8000/api/v1/generation/job/' + jobId + '/save-spec', {
+                const r = await fetch('http://localhost:8000/api/v1/generation/job/' + jobId + '/save-spec', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
                     },
                     body: JSON.stringify(spec)
-                }).then(r => {
-                    if (r.ok) {
-                        showToast('✅ Spécification sauvegardée!', 'success');
-                    } else {
-                        showToast('❌ Échec de la sauvegarde', 'error');
-                    }
                 });
+                
+                if (r.ok) {
+                    showToast('✅ Spécification sauvegardée!', 'success');
+                } else {
+                    showToast('❌ Échec de la sauvegarde', 'error');
+                }
             } catch(e) {
                 console.error('Failed to parse JSON:', e);
                 showToast('❌ Erreur de parsing JSON: ' + e.message, 'error');
